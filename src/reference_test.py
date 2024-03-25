@@ -61,10 +61,15 @@ def TestSimulation():
     size = 200
 
     config = ref.SimulationConfig(size, size, 0.5)
-
     lbm = ref.Lbm(config)
 
     lbm.weights[:,:] = [4.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0]
+
+    circle_rad = 15.0
+    a = 0.33
+
+    circle_pos_x = [a*size, (1.0-a)*size, a*size, (1.0-a)*size]
+    circle_pos_y = [a*size, a*size, (1.0-a)*size, (1.0-a)*size]
 
     for i in range(0, size):
         for j in range(0, size):
@@ -76,7 +81,19 @@ def TestSimulation():
             lbm.densities[i,j] = rho
             lbm.weights[i,j] *= rho
 
-    for i in range(0, 10):
+            for k in range(0,4):
+                dx = circle_pos_x[k] - i
+                dy = circle_pos_y[k] - j
+
+                d2 = dx*dx + dy*dy
+
+                if d2 < circle_rad * circle_rad:
+                    lbm.solid_mask[i,j] = True
+
+    for i in range(0, 15):
         lbm.Simulate(10)
-        #plotting.SaveHeatmap(lbm.densities, 'densities', str(i), 0.0, 2.0)
-        plotting.ShowHeatmap(lbm.densities, 'densities', 0.0, 2.0)
+        #plotting.ShowHeatmap(lbm.densities, 'density', 0.0, 2.0)
+        #plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')
+        plotting.SaveHeatmap(lbm.densities, 'densities', str(i), 0.0, 2.0)
+        #plotting.SaveVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity', str(i))
+        

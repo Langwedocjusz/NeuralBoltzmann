@@ -20,3 +20,9 @@ def ShowVectorField(val_x: np.array, val_y: np.array, title: str):
     plt.title(title)
     plt.show()
     plt.clf()
+
+def SaveVectorField(val_x: np.array, val_y: np.array, title: str, filepath: str):
+    plt.quiver(val_x, val_y)
+    plt.title(title)
+    plt.savefig(filepath)
+    plt.clf()

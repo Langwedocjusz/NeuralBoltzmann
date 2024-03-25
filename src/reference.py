@@ -17,9 +17,9 @@ class Lbm:
         self.shape2d = (config.grid_size_x, config.grid_size_y, 1)
         self.shape1d = (1, 1, 9)
 
-        self.weights     = np.full(self.shape, 0.0)
-        self.new_weights = np.full(self.shape, 0.0)
-        self.eq_weights  = np.full(self.shape, 0.0)
+        self.weights     = np.zeros(self.shape, dtype=float)
+        self.new_weights = np.zeros(self.shape, dtype=float)
+        self.eq_weights  = np.zeros(self.shape, dtype=float)
 
         self.eq_factors = np.array([
             4.0/9.0, 
@@ -27,9 +27,9 @@ class Lbm:
             1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0
         ]).reshape(self.shape1d)
 
-        self.densities    = np.full((config.grid_size_x, config.grid_size_y), 0.0)
-        self.velocities_x = np.full((config.grid_size_x, config.grid_size_y), 0.0)
-        self.velocities_y = np.full((config.grid_size_x, config.grid_size_y), 0.0)
+        self.densities    = np.zeros((config.grid_size_x, config.grid_size_y), dtype=float)
+        self.velocities_x = np.zeros((config.grid_size_x, config.grid_size_y), dtype=float)
+        self.velocities_y = np.zeros((config.grid_size_x, config.grid_size_y), dtype=float)
 
         #Weight ids convention:
         #  6 -- 2 -- 5
@@ -75,6 +75,13 @@ class Lbm:
         self.base_velocities_x = np.array([0.0, 1.0, 0.0, -1.0, 0.0, diag, -diag, -diag, diag])
         self.base_velocities_y = np.array([0.0, 0.0, 1.0, 0.0, -1.0, diag, diag, -diag, -diag])
 
+        #Solid mask
+        self.solid_mask = np.zeros(self.shape2d, dtype=bool)
+
+        #Bounceback indexes
+        self.default_ids = [0,1,2,3,4,5,6,7,8]
+        self.swapped_ids = [0,2,1,4,3,7,8,5,6]
+
     def UpdateMacroscopic(self):
         self.densities    = np.sum(self.new_weights, axis=2)
         self.velocities_x = np.dot(self.new_weights, self.base_velocities_x)
@@ -83,7 +90,12 @@ class Lbm:
         self.velocities_y = self.velocities_y / self.densities
 
     def Streaming(self):
-        self.new_weights = self.weights[*self.indices.T]
+        stream_weights = self.weights[*self.indices.T]
+
+        bounced_weights = np.zeros(self.shape, dtype=float)
+        bounced_weights[:,:,self.default_ids] = self.weights[:,:,self.swapped_ids]
+
+        self.new_weights = (1.0 - self.solid_mask) * stream_weights + self.solid_mask * bounced_weights
 
     def CalculateEquilibrium(self):
         #Second order approximation to Maxwell distribution:

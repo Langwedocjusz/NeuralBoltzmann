@@ -1,3 +1,5 @@
+import numpy as np
+
 import src.reference_test as ref_test
 
 #ref_test.TestMacroscopic()
