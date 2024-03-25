@@ -69,15 +69,18 @@ class Lbm:
         self.indices[8,:,:] = np.roll(self.indices[8,:,:],  1, axis=0)
 
         #Base velocities
-        diag = 0.5 * np.sqrt(2.0)
+        #diag = 0.5 * np.sqrt(2.0)
+        diag = 1.0
 
         self.base_velocities_x = np.array([0.0, 1.0, 0.0, -1.0, 0.0, diag, -diag, -diag, diag])
         self.base_velocities_y = np.array([0.0, 0.0, 1.0, 0.0, -1.0, diag, diag, -diag, -diag])
 
     def UpdateMacroscopic(self):
-        self.densities    = np.sum(self.weights, axis=2)
-        self.velocities_x = np.dot(self.weights, self.base_velocities_x)
-        self.velocities_y = np.dot(self.weights, self.base_velocities_y)
+        self.densities    = np.sum(self.new_weights, axis=2)
+        self.velocities_x = np.dot(self.new_weights, self.base_velocities_x)
+        self.velocities_x = self.velocities_x / self.densities
+        self.velocities_y = np.dot(self.new_weights, self.base_velocities_y)
+        self.velocities_y = self.velocities_y / self.densities
 
     def Streaming(self):
         self.new_weights = self.weights[*self.indices.T]
@@ -101,5 +104,12 @@ class Lbm:
 
     def Collision(self):
         #BGK collision operator:
-        #f - > f + 1/tau * (f_eq - f)
+        #f - > f + 1/tau * (f_eq - f) = (1 - 1/tau) * f + f_eq/tau
         self.weights = self.one_minus_tau_inverse * self.new_weights + self.tau_inverse * self.eq_weights
+
+    def Simulate(self, num_steps: int):
+        for i in range (0, num_steps):
+            self.Streaming()
+            self.UpdateMacroscopic()
+            self.CalculateEquilibrium()
+            self.Collision()
