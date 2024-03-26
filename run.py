@@ -6,4 +6,6 @@ import src.reference_test as ref_test
 #ref_test.TestStreaming()
 #ref_test.TestEquilibrium()
 
-ref_test.TestSimulation()
+#ref_test.TestSimulation()
+ref_test.TestSimulationPoiseuille()
+#ref_test.SimulateCylinder()

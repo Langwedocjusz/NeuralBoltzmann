@@ -6,14 +6,18 @@ class SimulationConfig:
     grid_size_x: int
     grid_size_y: int
     tau: float
+    gravity: (float, float) = (0.0, 0.0)
 
 class Lbm:
     def __init__(self, config: SimulationConfig):
+        self.tau = config.tau
         self.tau_inverse = 1.0/config.tau
         self.one_minus_tau_inverse = 1.0 - self.tau_inverse
 
+        self.gravity = config.gravity
+
         #Lattice initialization
-        self.shape   = (config.grid_size_x, config.grid_size_x, 9)
+        self.shape   = (config.grid_size_x, config.grid_size_y, 9)
         self.shape2d = (config.grid_size_x, config.grid_size_y, 1)
         self.shape1d = (1, 1, 9)
 
@@ -82,6 +86,9 @@ class Lbm:
         self.default_ids = [0,1,2,3,4,5,6,7,8]
         self.swapped_ids = [0,2,1,4,3,7,8,5,6]
 
+    def InitStationary(self):
+        self.weights[:,:] = [4.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0]
+
     def UpdateMacroscopic(self):
         self.densities    = np.sum(self.new_weights, axis=2)
         self.velocities_x = np.dot(self.new_weights, self.base_velocities_x)
@@ -101,13 +108,17 @@ class Lbm:
         #Second order approximation to Maxwell distribution:
         # f^eq_i = w_i * rho * (1.0 + 3.0 e_i.u + 4.5 * (e_i.u)^2 - 1.5 u.u)
 
-        eDotUx = self.base_velocities_x.reshape(self.shape1d) * self.velocities_x.reshape(self.shape2d)
-        eDotUy = self.base_velocities_y.reshape(self.shape1d) * self.velocities_y.reshape(self.shape2d)
+        (gx, gy) = self.gravity
+        velocities_eq_x = self.velocities_x + self.tau * gx * self.densities
+        velocities_eq_y = self.velocities_y + self.tau * gy * self.densities
+
+        eDotUx = self.base_velocities_x.reshape(self.shape1d) * velocities_eq_x.reshape(self.shape2d)
+        eDotUy = self.base_velocities_y.reshape(self.shape1d) * velocities_eq_y.reshape(self.shape2d)
 
         eDotU = eDotUx + eDotUy
         eDotU2 = np.square(eDotU)
 
-        u2 = np.square(self.velocities_x) + np.square(self.velocities_y)
+        u2 = np.square(velocities_eq_x) + np.square(velocities_eq_y)
 
         f_tmp = 1.0 + 3.0 * eDotU + 4.5 * eDotU2 - 1.5 * u2.reshape(self.shape2d)
         f_tmp = self.densities.reshape(self.shape2d) * f_tmp

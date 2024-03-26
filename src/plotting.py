@@ -26,3 +26,16 @@ def SaveVectorField(val_x: np.array, val_y: np.array, title: str, filepath: str)
     plt.title(title)
     plt.savefig(filepath)
     plt.clf()
+
+def ShowFunction1d(val: np.array):
+    plt.plot(val)
+    plt.show()
+    plt.clf()
+
+def ShowFunctions1d(arrays, names, title):
+    for array in arrays:
+        plt.plot(array)
+    plt.legend(names)
+    plt.title(title)
+    plt.show()
+    plt.clf()
