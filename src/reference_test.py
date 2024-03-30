@@ -131,6 +131,34 @@ def TestSimulationPoiseuille():
     
     plotting.ShowFunctions1d(functions, names, 'velocity profile')
 
+def TestBoundary():
+    size = 20
+
+    config = ref.SimulationConfig(size, size, 0.5)
+    config.boundary_conditions = (ref.BC.PERIODIC, ref.BC.VON_NEUMANN, ref.BC.PERIODIC, ref.BC.VON_NEUMANN)
+    #config.boundary_conditions = (ref.BC.VON_NEUMANN, ref.BC.PERIODIC, ref.BC.VON_NEUMANN, ref.BC.PERIODIC)
+
+    lbm = ref.Lbm(config)
+    lbm.InitStationary()
+
+    v = 0.1
+
+    a = - 4.0 * v / (size*size)
+
+    for i in range(0, size):
+        vel = a * (i-size/2.0)**2 + v
+
+        lbm.boundary_velocities[1][i] = v
+        #lbm.boundary_velocities[3][i] = v
+        #lbm.boundary_velocities[0][i] = v
+        #lbm.boundary_velocities[2][i] = v
+
+    for i in range(0, 20):
+        lbm.Simulate(1)
+        plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')
+        #plotting.ShowHeatmap(lbm.velocities_x, 'velocity x')
+
+
 def Curl(vel_x, vel_y):
     range_x = np.arange(0, len(vel_x[:,0]))
     range_y = np.arange(0, len(vel_x[0,:]))
@@ -144,15 +172,26 @@ def Curl(vel_x, vel_y):
     return dv_xx * dv_yy - dv_xy * dv_yx
 
 def SimulateCylinder():
-    size_x = 100
-    size_y = 400
+    size_x = 50
+    size_y = 200
     rad = 5.0
-    g = 0.001
 
-    config = ref.SimulationConfig(size_x, size_y, 0.6, (g, 0.0))
+    config = ref.SimulationConfig(size_x, size_y, 1.0)
+    config.boundary_conditions = (ref.BC.PERIODIC, ref.BC.VON_NEUMANN, ref.BC.PERIODIC, ref.BC.VON_NEUMANN)
+
     lbm = ref.Lbm(config)
     lbm.InitStationary()
     lbm.weights *= 1.0
+
+    v = 0.1
+
+    a = - 4.0 * v / (size_x*size_x)
+
+    for i in range(0, size_x):
+        vel = a * (i-size_x/2.0)**2 + v
+
+        lbm.boundary_velocities[1][i] = v
+        lbm.boundary_velocities[3][i] = -v
 
     center_x = 0.5*size_x
     center_y = 0.25*size_y
@@ -164,20 +203,12 @@ def SimulateCylinder():
 
             if dx*dx + dy*dy < rad**2:
                 lbm.solid_mask[i,j] = True
-    
-    t0 = time.time()
-    lbm.Simulate(500)
-    t1 = time.time()
 
-    print("Execution took ", t1-t0, " [s]")
-
-    #for i in range(0,10):
-        #lbm.Simulate(100)
-        #curl = Curl(lbm.velocities_x, lbm.velocities_y)
-        #plotting.ShowHeatmap(curl, 'curl', 0.0, 0.001)
+    for i in range(0,10):
+        lbm.Simulate(100)
+        
+        plotting.ShowFlowLines(lbm.velocities_x, lbm.velocities_y)
+        #u2 = np.square(lbm.velocities_x) + np.square(lbm.velocities_y)
+        #plotting.ShowHeatmap(u2, 'velocity magnitude', 0.0, 0.1)
         #plotting.ShowHeatmap(lbm.densities, 'density')
         #plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')
-
-
-    #plotting.ShowHeatmap(lbm.densities, 'density')
-    #plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')

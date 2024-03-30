@@ -7,5 +7,7 @@ import src.reference_test as ref_test
 #ref_test.TestEquilibrium()
 
 #ref_test.TestSimulation()
-ref_test.TestSimulationPoiseuille()
-#ref_test.SimulateCylinder()
+#ref_test.TestSimulationPoiseuille()
+ref_test.SimulateCylinder()
+
+#ref_test.TestBoundary()
