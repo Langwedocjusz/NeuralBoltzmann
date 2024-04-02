@@ -44,11 +44,8 @@ def ShowFlowLines(val_x: np.array, val_y: np.array):
     x = np.arange(np.size(val_x, 0))
     y = np.arange(np.size(val_x, 1))
 
-    #print(val_x.shape)
-    #print(x.shape)
-    #print(y.shape)
-
     plt.streamplot(y, x, val_x, val_y)
+    plt.axis('equal')
 
     plt.show()
     plt.clf()
