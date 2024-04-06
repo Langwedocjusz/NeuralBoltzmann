@@ -119,7 +119,7 @@ def TestSimulationPoiseuille():
     a = size_y/2.0
     nu = 0.33*(lbm.tau - 0.5)
     
-    theoretical = troch.zeros(size_y)
+    theoretical = torch.zeros(size_y)
     
     for i in range(0, size_y):
         x = i - a

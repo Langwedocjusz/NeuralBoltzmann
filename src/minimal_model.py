@@ -34,7 +34,6 @@ class Lbm:
 
         self.weights     = torch.zeros(self.shape, dtype=torch.float)
         self.new_weights = torch.zeros(self.shape, dtype=torch.float)
-        self.eq_weights  = torch.zeros(self.shape, dtype=torch.float)
 
         self.eq_factors = torch.tensor([
             4.0/9.0, 
@@ -46,6 +45,13 @@ class Lbm:
         self.velocities_x = torch.zeros((config.grid_size_x, config.grid_size_y), dtype=torch.float)
         self.velocities_y = torch.zeros((config.grid_size_x, config.grid_size_y), dtype=torch.float)
 
+        #Collision parameters (to be trained)
+        self.M0 = torch.zeros((9,9), dtype=torch.float)
+        self.D  = torch.zeros((9,9), dtype=torch.float)
+        self.Q  = torch.zeros((9,9), dtype=torch.float)
+        self.phi0 = torch.zeros((9), dtype=torch.float)
+
+        #Boundaries
         self.boundary_conditions = config.boundary_conditions
 
         self.boundary_velocities = [
@@ -137,46 +143,20 @@ class Lbm:
             [4.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0]
         )
 
-    def UpdateMacroscopic(self):
-        self.densities    = torch.sum(self.new_weights, axis=2)
-        self.velocities_x = torch.einsum("ijk,k->ij", (self.new_weights, self.base_velocities_x))
-        self.velocities_x = self.velocities_x / self.densities
-        self.velocities_y = torch.einsum("ijk,k->ij", (self.new_weights, self.base_velocities_y))
-        self.velocities_y = self.velocities_y / self.densities
+    def InitExactCollision(self):
+        e = torch.stack((self.base_velocities_x, self.base_velocities_y))
+        A = torch.matmul(e.t(), e)
 
-    def Streaming(self):
-        stream_weights = self.weights[*self.indices.permute(3,2,1,0)]
+        w = torch.tensor(
+            [4.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0]
+        )
 
-        bounced_weights = torch.zeros(self.shape, dtype=torch.float)
-        bounced_weights[:,:,self.default_ids] = self.weights[:,:,self.swapped_ids]
+        diag_w = torch.diag(w)
 
-        self.new_weights = (~self.solid_mask) * stream_weights + self.solid_mask * bounced_weights
-
-    def CalculateEquilibrium(self):
-        #Second order approximation to Maxwell distribution:
-        # f^eq_i = w_i * rho * (1.0 + 3.0 e_i.u + 4.5 * (e_i.u)^2 - 1.5 u.u)
-
-        (gx, gy) = self.gravity
-        velocities_eq_x = self.velocities_x + self.tau * gx * self.densities
-        velocities_eq_y = self.velocities_y + self.tau * gy * self.densities
-
-        eDotUx = self.base_velocities_x.reshape(self.shape1d) * velocities_eq_x.reshape(self.shape2d)
-        eDotUy = self.base_velocities_y.reshape(self.shape1d) * velocities_eq_y.reshape(self.shape2d)
-
-        eDotU = eDotUx + eDotUy
-        eDotU2 = torch.square(eDotU)
-
-        u2 = torch.square(velocities_eq_x) + torch.square(velocities_eq_y)
-
-        f_tmp = 1.0 + 3.0 * eDotU + 4.5 * eDotU2 - 1.5 * u2.reshape(self.shape2d)
-        f_tmp = self.densities.reshape(self.shape2d) * f_tmp
-
-        self.eq_weights = f_tmp * self.eq_factors
-
-    def Collision(self):
-        #BGK collision operator:
-        #f - > f + 1/tau * (f_eq - f) = (1 - 1/tau) * f + f_eq/tau
-        self.weights = self.one_minus_tau_inverse * self.new_weights + self.tau_inverse * self.eq_weights
+        self.M0 = self.one_minus_tau_inverse * torch.eye(9) + 3.0 * self.tau_inverse * torch.matmul(A, diag_w)
+        self.D = np.sqrt(4.5*self.tau_inverse) * torch.matmul(A, torch.sqrt(diag_w))
+        self.phi0 = (1.0/self.tau) * w
+        self.Q = (-1.5 * self.tau_inverse) * A
 
     def HandleBoundary(self, edge_id: int):
         horizontal = (edge_id % 2 == 0)
@@ -221,10 +201,36 @@ class Lbm:
             if self.boundary_conditions[i] == BC.VON_NEUMANN:
                 self.HandleBoundary(i)
 
+    def Streaming(self):
+        stream_weights = self.weights[*self.indices.permute(3,2,1,0)]
+
+        bounced_weights = torch.zeros(self.shape, dtype=torch.float)
+        bounced_weights[:,:,self.default_ids] = self.weights[:,:,self.swapped_ids]
+
+        self.new_weights = (~self.solid_mask) * stream_weights + self.solid_mask * bounced_weights
+
+    def UpdateMacroscopic(self):
+        self.densities    = torch.sum(self.new_weights, axis=2)
+        self.velocities_x = torch.einsum("ijk,k->ij", (self.new_weights, self.base_velocities_x))
+        self.velocities_x = self.velocities_x / self.densities
+        self.velocities_y = torch.einsum("ijk,k->ij", (self.new_weights, self.base_velocities_y))
+        self.velocities_y = self.velocities_y / self.densities
+
+    def Collision(self):
+        M0 = torch.matmul(self.new_weights, self.M0)
+
+        D = torch.square(torch.matmul(self.new_weights, self.D))
+        D = D/self.densities.reshape(self.shape2d)
+
+        phi0 = self.densities.reshape(self.shape2d) * self.phi0
+
+        Q  = (torch.einsum("ijk,ijk->ij", (self.new_weights, torch.matmul(self.new_weights, self.Q))))/self.densities
+        
+        self.weights = M0 + D + phi0 + Q.reshape(self.shape2d) * self.eq_factors
+
     def Simulate(self, num_steps: int):
         for i in range (0, num_steps):
             self.HandleBoundaries()
             self.Streaming()
             self.UpdateMacroscopic()
-            self.CalculateEquilibrium()
             self.Collision()
