@@ -5,6 +5,12 @@ import src.reference_test as ref_test
 import src.torch_ref_test as torch_test
 import src.minimal_model_test as minimal_test
 
+import src.minimal_training as minimal_training
+
+from mock.optimizer import train_custom
+
+train_custom()
+
 #ref_test.TestMacroscopic()
 #ref_test.TestStreaming()
 #ref_test.TestEquilibrium()
@@ -25,5 +31,6 @@ import src.minimal_model_test as minimal_test
 
 #=====================================
 
-minimal_test.TestSimulation()
+#minimal_test.TestSimulation()
+#minimal_training.TestTraining()
 

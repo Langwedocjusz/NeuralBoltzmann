@@ -158,6 +158,12 @@ class Lbm:
         self.phi0 = (1.0/self.tau) * w
         self.Q = (-1.5 * self.tau_inverse) * A
 
+    def InitAutoGrad(self):
+        self.M0.requires_grad_()
+        self.D.requires_grad_()
+        self.phi0.requires_grad_()
+        self.Q.requires_grad_()
+
     def HandleBoundary(self, edge_id: int):
         horizontal = (edge_id % 2 == 0)
 
@@ -227,6 +233,19 @@ class Lbm:
         Q  = (torch.einsum("ijk,ijk->ij", (self.new_weights, torch.matmul(self.new_weights, self.Q))))/self.densities
         
         self.weights = M0 + D + phi0 + Q.reshape(self.shape2d) * self.eq_factors
+
+    def GradientDescent(self, learning_rate: float):
+        with torch.no_grad():
+            self.M0   -= learning_rate * self.M0.grad
+            self.D    -= learning_rate * self.D.grad
+            self.phi0 -= learning_rate * self.phi0.grad
+            self.Q    -= learning_rate * self.Q.grad
+            
+            self.M0.grad   = None
+            self.D.grad    = None
+            self.phi0.grad = None
+            self.Q.grad    = None
+
 
     def Simulate(self, num_steps: int):
         for i in range (0, num_steps):

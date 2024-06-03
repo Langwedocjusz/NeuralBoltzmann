@@ -176,7 +176,7 @@ def SimulateCylinder():
     size_y = 300
     rad = 12.0
     v = 0.04
-    Re = 120.0
+    Re = 1.0
 
     nu = v*rad/Re
     tau = 3.0*nu+0.5
@@ -192,11 +192,11 @@ def SimulateCylinder():
         a = - 4.0 * v / (size_x*size_x)
         vel = a * (i-size_x/2.0)**2 + v
 
-        lbm.boundary_velocities[1][i] = vel
-        lbm.boundary_velocities[3][i] = -vel
+        lbm.boundary_velocities[1][i] = v#el
+        lbm.boundary_velocities[3][i] = -v#el
 
-    center_x = 75.0#0.5*size_x
-    center_y = 50.0#0.25*size_y
+    center_x = 0.5*size_x
+    center_y = (1.0/6.0)*size_y
 
     for i in range(0, size_x):
         for j in range(0, size_y):
