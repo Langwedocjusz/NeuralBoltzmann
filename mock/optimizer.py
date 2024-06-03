@@ -58,14 +58,13 @@ class CustomConvoLayer(nn.Module):
             patches = torch.matmul(patches, self.weight)
 
             m = self.mask.unsqueeze(0).repeat(batch_size,1,1)
-            
-            res = input.clone()
+
             res[m] = patches.flatten()
 
         else:
             patches = input.unfold(1, 3, 1)         
             patches = torch.matmul(patches, self.weight)
-
+        
             res[self.mask] = patches
 
         return res
@@ -182,44 +181,6 @@ def train_linear():
 
     print(model.lin.weight)
     print(model.lin.bias)
-
-def train_conv():
-    """Example of training the IteratedLinearNet to solve the diffusion equation"""
-
-    model = IteratedConvoNet()
-
-    criterion = nn.MSELoss(reduction = 'sum')
-    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-
-    dataloader = get_training_dataloader(point_impulses)
-
-    for t in range(LEARNING_EPOCHS):
-        for batch, (initial_data, target) in enumerate(dataloader):
-            prediction = model(initial_data)
-
-            loss = criterion(prediction, target)
-
-            if t % 100 == 0:
-                print(f'Iteration: {t}, Loss: {loss.item()}')
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-    test_case = torch.linspace(0.0, 1.0, GRID_SIZE)
-    test_case.apply_(lambda x : 0.5 + 0.5*math.sin(5.0*x))
-
-    test_target = evolve_to_convergence(test_case, DT, CLASSIC_EPSILON).numpy()
-
-    test_result = model(test_case.unsqueeze(0)).detach()[0].numpy()
-
-    #plotting.ShowFunction1d(test_result)
-    print(test_result)
-
-    plotting.ShowFunctions1d([test_case, test_target, test_result], ["initial data", "ground truth", "result"], 'final result')
-
-    print(model.conv.weight)
-    print(model.conv.bias)
 
 def train_custom():
     """Example of training the CustomIteratedConvoNet to solve the diffusion equation"""
