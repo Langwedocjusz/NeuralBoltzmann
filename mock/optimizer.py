@@ -3,19 +3,18 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 
 import math
+from dataclasses import dataclass
 
 import src.plotting as plotting
 from mock.classical_solver import evolve_to_convergence
 
+#Simulation domain:
 GRID_SIZE = 10
-
-LEARNING_RATE = 1e-3
-SIMULATION_STEPS = 60
-LEARNING_EPOCHS = 1000#20000
-MIN_LOSS = 1e-6
-
+#Classical solver (target) parameters:
 DT = 0.5
 CLASSIC_EPSILON = 0.001
+#Neural networks inner iteration count:
+SIMULATION_STEPS = 60
 
 class IteratedLinearNet(nn.Module):
     """Simple neural network that applies one linear (dense) layer multiple times."""
@@ -148,17 +147,23 @@ def get_training_dataloader(generating_fn):
 
     return dataloader
 
-def train_linear():
+@dataclass(slots=True)
+class LearningConfig:
+    learning_epochs: int
+    learning_rate: float
+    min_loss: float
+
+def train_linear(config: LearningConfig):
     """Example of training the IteratedLinearNet to solve the diffusion equation"""
 
     model = IteratedLinearNet(GRID_SIZE)
 
     criterion = nn.MSELoss(reduction = 'sum')
-    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
     dataloader = get_training_dataloader(triangle_impulses)
 
-    for t in range(LEARNING_EPOCHS):
+    for t in range(config.learning_epochs):
         for batch, (initial_data, target) in enumerate(dataloader):
             prediction = model(initial_data)
 
@@ -182,18 +187,18 @@ def train_linear():
     print(model.lin.weight)
     print(model.lin.bias)
 
-def train_custom():
+def train_custom(config: LearningConfig):
     """Example of training the CustomIteratedConvoNet to solve the diffusion equation"""
     
     model = CustomIteratedConvoNet(GRID_SIZE)
-    model.conv.weight.data = torch.tensor([0.5, 0.0, 0.5])
+    model.conv.weight.data = 0.1*torch.randn(3)
 
     criterion = nn.MSELoss(reduction = 'sum')
-    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
     dataloader = get_training_dataloader(triangle_impulses)
 
-    for t in range(LEARNING_EPOCHS):
+    for t in range(config.learning_epochs):
         for batch, (initial_data, target) in enumerate(dataloader):
             prediction = model(initial_data)
 

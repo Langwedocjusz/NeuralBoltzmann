@@ -1,10 +1,15 @@
-import src.plotting as plotting
-import src.reference as ref
-
 import numpy as np
-import time
+
+import src.reference as ref
+import src.plotting as plotting
 
 def TestMacroscopic():
+    """
+    Test of the UpdateMacroscopic method of the lbm class.
+    Method is called with new_weights values set by hand.
+    The resulting denisties and velocities are then plotted.
+    """
+
     config = ref.SimulationConfig(3, 3, 0.5)
     lbm = ref.Lbm(config)
 
@@ -24,6 +29,12 @@ def TestMacroscopic():
     plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')
 
 def TestStreaming():
+    """
+    Test of the Streaming method of the lbm class.
+    Method is called for single-node blobs of fluid moving in all of the 9 principal directions of D29Q lattice.
+    Streaming is then called twice and the movement (with periodic boundary conditions) is plotted.
+    """
+
     config = ref.SimulationConfig(3, 3, 0.5)
     lbm = ref.Lbm(config)
 
@@ -41,6 +52,12 @@ def TestStreaming():
         plotting.ShowHeatmap(lbm.new_weights[:,:,test_id], str(test_id))
 
 def TestEquilibrium():
+    """
+    Test of the CalculateEquilibrium method of the lbm class.
+    The method is called on a lattice with hand picked densities and velocities.
+    The resulting equilibrium weights are then printed.
+    """
+
     config = ref.SimulationConfig(3, 3, 0.5)
     lbm = ref.Lbm(config)
 
@@ -58,7 +75,48 @@ def TestEquilibrium():
 
     print(lbm.eq_weights)
 
+def TestBoundary():
+    """ 
+    Test of boundary conditions handling in the lbm class.
+    Left wall is assigned nonzero von neumann velocity.
+    Fluid is initialized with a constant distribution and simulation is carried out.
+    Velocity fields at subsequent simulation steps are then plotted.
+    """
+
+    size = 20
+
+    config = ref.SimulationConfig(size, size, 0.5)
+    config.boundary_conditions = (ref.BC.PERIODIC, ref.BC.VON_NEUMANN, ref.BC.PERIODIC, ref.BC.VON_NEUMANN)
+    #config.boundary_conditions = (ref.BC.VON_NEUMANN, ref.BC.PERIODIC, ref.BC.VON_NEUMANN, ref.BC.PERIODIC)
+
+    lbm = ref.Lbm(config)
+    lbm.InitStationary()
+
+    v = 0.1
+
+    a = - 4.0 * v / (size*size)
+
+    for i in range(0, size):
+        vel = a * (i-size/2.0)**2 + v
+
+        lbm.boundary_velocities[1][i] = v
+        #lbm.boundary_velocities[3][i] = v
+        #lbm.boundary_velocities[0][i] = v
+        #lbm.boundary_velocities[2][i] = v
+
+    for i in range(0, 20):
+        lbm.Simulate(1)
+        plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')
+        #plotting.ShowHeatmap(lbm.velocities_x, 'velocity x')
+
+
 def TestSimulation():
+    """
+    Test of fluid simulation using the lbm class.
+    Fluid density is initialized as a gaussian distribution.
+    It then flows around 4 symmetrically placed cylinders.
+    """
+
     size = 200
 
     config = ref.SimulationConfig(size, size, 0.5)
@@ -99,6 +157,14 @@ def TestSimulation():
         
 
 def TestSimulationPoiseuille():
+    """
+    Test of fluid simulation using the lbm class.
+    Lattice is initialized as a vertical pipe with periodic boundary conditions
+    on top and bottom and with nonzero gravity.
+    Simulation is then carried out and resulting velocity profile is plotted
+    and compared to the theoretical profile of a Poiseuille flow.
+    """
+
     size_x = 40
     size_y = 20
     g = 0.01
@@ -131,47 +197,16 @@ def TestSimulationPoiseuille():
     
     plotting.ShowFunctions1d(functions, names, 'velocity profile')
 
-def TestBoundary():
-    size = 20
-
-    config = ref.SimulationConfig(size, size, 0.5)
-    config.boundary_conditions = (ref.BC.PERIODIC, ref.BC.VON_NEUMANN, ref.BC.PERIODIC, ref.BC.VON_NEUMANN)
-    #config.boundary_conditions = (ref.BC.VON_NEUMANN, ref.BC.PERIODIC, ref.BC.VON_NEUMANN, ref.BC.PERIODIC)
-
-    lbm = ref.Lbm(config)
-    lbm.InitStationary()
-
-    v = 0.1
-
-    a = - 4.0 * v / (size*size)
-
-    for i in range(0, size):
-        vel = a * (i-size/2.0)**2 + v
-
-        lbm.boundary_velocities[1][i] = v
-        #lbm.boundary_velocities[3][i] = v
-        #lbm.boundary_velocities[0][i] = v
-        #lbm.boundary_velocities[2][i] = v
-
-    for i in range(0, 20):
-        lbm.Simulate(1)
-        plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')
-        #plotting.ShowHeatmap(lbm.velocities_x, 'velocity x')
-
-
-def Curl(vel_x, vel_y):
-    range_x = np.arange(0, len(vel_x[:,0]))
-    range_y = np.arange(0, len(vel_x[0,:]))
-
-    dv_xx = vel_x[range_x,:] - vel_x[np.roll(range_x, 1),:]
-    dv_xy = vel_x[:,range_y] - vel_x[:,np.roll(range_y, 1)]
-
-    dv_yx = vel_y[range_x,:] - vel_y[np.roll(range_x, 1),:]
-    dv_yy = vel_y[:,range_y] - vel_y[:,np.roll(range_y, 1)]
-
-    return dv_xx * dv_yy - dv_xy * dv_yx
-
 def SimulateCylinder():
+    """
+    Test of fluid simulation using the lbm class.
+    Fluid density is initialized as a constant distribution.
+    Left and right walls are assigned von neumann (inflow/outflow) velocities,
+    while top and bottom are kept as periodic.
+    A cyllinder is placed inside the lattice and flow simulation is carried out.
+    As the flow develops, resulting flow lines are plotted.
+    """
+
     size_x = 150
     size_y = 300
     rad = 12.0

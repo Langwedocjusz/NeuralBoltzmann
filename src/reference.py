@@ -1,12 +1,13 @@
 import numpy as np
-from dataclasses import dataclass
+
 from enum import Enum
+from dataclasses import dataclass
 
 class BC(Enum):
     PERIODIC = 0
     VON_NEUMANN = 1
 
-@dataclass
+@dataclass(slots=True)
 class SimulationConfig:
     grid_size_x: int
     grid_size_y: int
@@ -15,6 +16,8 @@ class SimulationConfig:
     boundary_conditions: (BC, BC, BC, BC) = (BC.PERIODIC, BC.PERIODIC, BC.PERIODIC, BC.PERIODIC)
 
 class Lbm:
+    """Class implementing the Lattice Boltzman D2Q9 scheme for simulating flows using numpy."""
+
     def __init__(self, config: SimulationConfig):
         self.tau = config.tau
         self.tau_inverse = 1.0/config.tau

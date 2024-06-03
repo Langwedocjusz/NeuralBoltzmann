@@ -1,14 +1,14 @@
 import torch
 import numpy as np
 
-from dataclasses import dataclass
 from enum import Enum
+from dataclasses import dataclass
 
 class BC(Enum):
     PERIODIC = 0
     VON_NEUMANN = 1
 
-@dataclass
+@dataclass(slots=True)
 class SimulationConfig:
     grid_size_x: int
     grid_size_y: int
@@ -17,6 +17,8 @@ class SimulationConfig:
     boundary_conditions: (BC, BC, BC, BC) = (BC.PERIODIC, BC.PERIODIC, BC.PERIODIC, BC.PERIODIC)
 
 class Lbm:
+    """Class implementing the Lattice Boltzman D2Q9 scheme for simulating flows using pytorch."""
+
     def __init__(self, config: SimulationConfig):
         self.tau = config.tau
         self.tau_inverse = 1.0/config.tau
@@ -110,26 +112,26 @@ class Lbm:
         if (self.boundary_conditions[0] == BC.VON_NEUMANN):
             for i in range(0, self.grid_size_y):
                 for a in range(0,9):
-                    self.indices[a,i,0] = [0,i,a]
+                    self.indices[a,i,0] = torch.tensor([0,i,a])
 
         if (self.boundary_conditions[1] == BC.VON_NEUMANN):
             for i in range(0, self.grid_size_x):
                 for a in range(0,9):
-                    self.indices[a,0,i] = [i,0,a]
+                    self.indices[a,0,i] = torch.tensor([i,0,a])
 
         if (self.boundary_conditions[0] == BC.VON_NEUMANN):
             lx = self.grid_size_x - 1
 
             for i in range(0, self.grid_size_y):
                 for a in range(0,9):
-                    self.indices[a,i,lx] = [lx,i,a]
+                    self.indices[a,i,lx] = torch.tensor([lx,i,a])
 
         if (self.boundary_conditions[3] == BC.VON_NEUMANN):
             ly = self.grid_size_y - 1
 
             for i in range(0, self.grid_size_x):
                 for a in range(0,9):
-                    self.indices[a,ly,i] = [i,ly,a]
+                    self.indices[a,ly,i] = torch.tensor([i,ly,a])
 
 
     def InitStationary(self):
