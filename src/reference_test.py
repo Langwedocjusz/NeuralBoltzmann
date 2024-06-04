@@ -180,10 +180,12 @@ def TestSimulationPoiseuille():
 
     numeric = lbm.velocities_y[0,:]
     
-    #theoretical:
+    #theoretical velocity profile:
     #v = 1/(2 nu) (a^2 - x^2)
     
-    a = size_y/2.0
+    #-1 since boundaries of the pipe are actually between the nodes:
+    a = (size_y-1.0)/2.0 
+
     nu = 0.33*(lbm.tau - 0.5)
     
     theoretical = np.zeros(size_y)
