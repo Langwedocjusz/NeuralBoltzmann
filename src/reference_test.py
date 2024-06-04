@@ -167,7 +167,7 @@ def TestSimulationPoiseuille():
 
     size_x = 40
     size_y = 20
-    g = 0.01
+    g = 0.0001
 
     config = ref.SimulationConfig(size_x, size_y, 1.0, (0.0, g))
     lbm = ref.Lbm(config)
