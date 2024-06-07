@@ -1,9 +1,11 @@
+"""This module implements a number of tests for the reference numpy solver."""
+
 import numpy as np
 
-import src.reference as ref
-import src.plotting as plotting
+from src import reference as ref
+from src import plotting
 
-def TestMacroscopic():
+def test_macroscopic():
     """
     Test of the UpdateMacroscopic method of the lbm class.
     Method is called with new_weights values set by hand.
@@ -23,12 +25,12 @@ def TestMacroscopic():
     lbm.new_weights[1,2,7] = 1.0
     lbm.new_weights[2,2,8] = 1.0
 
-    lbm.UpdateMacroscopic()
+    lbm.update_macroscopic()
 
     plotting.ShowHeatmap(lbm.densities, 'densities')
     plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')
 
-def TestStreaming():
+def test_streaming():
     """
     Test of the Streaming method of the lbm class.
     Method is called for single-node blobs of fluid moving in all of the 9 principal directions of D29Q lattice.
@@ -41,17 +43,17 @@ def TestStreaming():
     for test_id in range(0,9):
         lbm.weights     = np.zeros(lbm.shape, dtype=float)
         lbm.new_weights = np.zeros(lbm.shape, dtype=float)
-        
+
         lbm.weights[1, 1, test_id] = 1.0
 
         plotting.ShowHeatmap(lbm.weights[:,:,test_id], str(test_id))
-        lbm.Streaming()
+        lbm.streaming()
         plotting.ShowHeatmap(lbm.new_weights[:,:,test_id], str(test_id))
         lbm.weights = lbm.new_weights
-        lbm.Streaming()
+        lbm.streaming()
         plotting.ShowHeatmap(lbm.new_weights[:,:,test_id], str(test_id))
 
-def TestEquilibrium():
+def test_equilibrium():
     """
     Test of the CalculateEquilibrium method of the lbm class.
     The method is called on a lattice with hand picked densities and velocities.
@@ -69,14 +71,14 @@ def TestEquilibrium():
     lbm.new_weights[0,0] = [0.0, 0.25, 0.25, 0.25, 0.25, 0.0, 0.0, 0.0, 0.0]
     lbm.new_weights[1,0] = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-    lbm.UpdateMacroscopic()
+    lbm.update_macroscopic()
 
-    lbm.CalculateEquilibrium()
+    lbm.calculate_equilibrium()
 
     print(lbm.eq_weights)
 
-def TestBoundary():
-    """ 
+def test_boundary():
+    """
     Test of boundary conditions handling in the lbm class.
     Left wall is assigned nonzero von neumann velocity.
     Fluid is initialized with a constant distribution and simulation is carried out.
@@ -90,14 +92,16 @@ def TestBoundary():
     #config.boundary_conditions = (ref.BC.VON_NEUMANN, ref.BC.PERIODIC, ref.BC.VON_NEUMANN, ref.BC.PERIODIC)
 
     lbm = ref.Lbm(config)
-    lbm.InitStationary()
+    lbm.init_stationary()
 
     v = 0.1
 
-    a = - 4.0 * v / (size*size)
+    def parabolic_profile(i: int) -> float:
+        a = - 4.0 * v / (size*size)
+        return a * (i-size/2.0)**2 + v
 
     for i in range(0, size):
-        vel = a * (i-size/2.0)**2 + v
+        vel = parabolic_profile(i)
 
         lbm.boundary_velocities[1][i] = v
         #lbm.boundary_velocities[3][i] = v
@@ -105,12 +109,12 @@ def TestBoundary():
         #lbm.boundary_velocities[2][i] = v
 
     for i in range(0, 20):
-        lbm.Simulate(1)
+        lbm.simulate(1)
         plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')
         #plotting.ShowHeatmap(lbm.velocities_x, 'velocity x')
 
 
-def TestSimulation():
+def test_simulation():
     """
     Test of fluid simulation using the lbm class.
     Fluid density is initialized as a gaussian distribution.
@@ -121,21 +125,24 @@ def TestSimulation():
 
     config = ref.SimulationConfig(size, size, 0.5)
     lbm = ref.Lbm(config)
-    lbm.InitStationary()
+    lbm.init_stationary()
 
     circle_rad = 15.0
-    a = 0.33
+    spread = 0.33
 
-    circle_pos_x = [a*size, (1.0-a)*size, a*size, (1.0-a)*size]
-    circle_pos_y = [a*size, a*size, (1.0-a)*size, (1.0-a)*size]
+    high = spread
+    low = 1.0 - spread
+
+    circle_pos_x = [high*size, low*size,  high*size, low*size]
+    circle_pos_y = [high*size, high*size, low*size,  low*size]
 
     for i in range(0, size):
         for j in range(0, size):
             x = (i-size/2.0)/10.0
             y = (j-size/2.0)/10.0
-     
+
             rho = 1.0 + np.exp(-(x*x + y*y))
-    
+
             lbm.densities[i,j] = rho
             lbm.weights[i,j] *= rho
 
@@ -149,14 +156,14 @@ def TestSimulation():
                     lbm.solid_mask[i,j] = True
 
     for i in range(0, 15):
-        lbm.Simulate(10)
+        lbm.simulate(10)
         #plotting.ShowHeatmap(lbm.densities, 'density', 0.0, 2.0)
         plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')
         #plotting.SaveHeatmap(lbm.densities, 'densities', str(i), 0.0, 2.0)
         #plotting.SaveVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity', str(i))
-        
 
-def TestSimulationPoiseuille():
+
+def test_simulation_poiseuille():
     """
     Test of fluid simulation using the lbm class.
     Lattice is initialized as a vertical pipe with periodic boundary conditions
@@ -171,35 +178,35 @@ def TestSimulationPoiseuille():
 
     config = ref.SimulationConfig(size_x, size_y, 1.0, (0.0, g))
     lbm = ref.Lbm(config)
-    lbm.InitStationary()
+    lbm.init_stationary()
 
     lbm.solid_mask[:,0]        = True
     lbm.solid_mask[:,size_y-1] = True
 
-    lbm.Simulate(1000)
+    lbm.simulate(1000)
 
     numeric = lbm.velocities_y[0,:]
-    
-    #theoretical velocity profile:
-    #v = 1/(2 nu) (a^2 - x^2)
-    
-    #-1 since boundaries of the pipe are actually between the nodes:
-    a = (size_y-1.0)/2.0 
 
-    nu = 0.33*(lbm.tau - 0.5)
-    
-    theoretical = np.zeros(size_y)
-    
-    for i in range(0, size_y):
+
+    def theoretical_velocity(i: float) -> float:
+        #v = g/(2 nu) (a^2 - x^2)
+        nu = 0.33*(lbm.tau - 0.5)
+        #-1 since boundaries of the pipe are actually between the nodes:
+        a = (size_y-1.0)/2.0
         x = i - a
-        theoretical[i] = g * (a*a - x*x)/(2.0*nu)
-    
+        return g * (a*a - x*x)/(2.0*nu)
+
+
+    theoretical = np.array([
+        theoretical_velocity(i) for i in range(0, size_y)
+    ])
+
     functions = [numeric, theoretical]
     names = ['numeric', 'theoretical']
-    
+
     plotting.ShowFunctions1d(functions, names, 'velocity profile')
 
-def SimulateCylinder():
+def simulate_cylinder():
     """
     Test of fluid simulation using the lbm class.
     Fluid density is initialized as a constant distribution.
@@ -219,10 +226,12 @@ def SimulateCylinder():
     tau = 3.0*nu+0.5
 
     config = ref.SimulationConfig(size_x, size_y, tau)
-    config.boundary_conditions = (ref.BC.PERIODIC, ref.BC.VON_NEUMANN, ref.BC.PERIODIC, ref.BC.VON_NEUMANN)
+    config.boundary_conditions = (
+        ref.BC.PERIODIC, ref.BC.VON_NEUMANN, ref.BC.PERIODIC, ref.BC.VON_NEUMANN
+    )
 
     lbm = ref.Lbm(config)
-    lbm.InitStationary()
+    lbm.init_stationary()
     lbm.weights *= 1.0
 
     for i in range(0, size_x):
@@ -244,8 +253,8 @@ def SimulateCylinder():
                 lbm.solid_mask[i,j] = True
 
     for i in range(0,50):
-        lbm.Simulate(25)
-        
+        lbm.simulate(25)
+
         plotting.ShowFlowLines(lbm.velocities_x, lbm.velocities_y)
         #u2 = np.square(lbm.velocities_x) + np.square(lbm.velocities_y)
         #plotting.ShowHeatmap(u2, 'velocity magnitude', 0.0, 0.1)

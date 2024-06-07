@@ -7,39 +7,40 @@ from mock.optimizer import LearningConfig
 from mock.optimizer import train_linear
 from mock.optimizer import train_custom
 
+
 def main():
-    config = LearningConfig(1000, 1e-3, 1e-3)
+    config = LearningConfig(2000, 1e-3, 1e-3)
 
     #train_linear(config)
     train_custom(config)
 
-    #=====================================
+    # =====================================
 
-    #ref_test.TestMacroscopic()
-    #ref_test.TestStreaming()
-    #ref_test.TestEquilibrium()
-    #ref_test.TestBoundary()
+    #ref_test.test_macroscopic()
+    #ref_test.test_streaming()
+    #ref_test.test_equilibrium()
+    #ref_test.test_boundary()
 
-    #ref_test.TestSimulation()
-    #ref_test.TestSimulationPoiseuille()
-    #ref_test.SimulateCylinder()
+    #ref_test.test_simulation()
+    #ref_test.test_simulation_poiseuille()
+    #ref_test.simulate_cylinder()
 
-    #=====================================
+    # =====================================
 
-    #torch_test.TestMacroscopic()
-    #torch_test.TestStreaming()
-    #torch_test.TestEquilibrium()
-    #torch_test.TestBoundary()
+    #torch_test.test_macroscopic()
+    #torch_test.test_streaming()
+    #torch_test.test_equilibrium()
+    #torch_test.test_boundary()
 
-    #torch_test.TestSimulation()
-    #torch_test.TestSimulationPoiseuille()
-    #torch_test.SimulateCylinder()
+    #torch_test.test_simulation()
+    #torch_test.test_simulation_poiseuille()
+    #torch_test.simulate_cylinder()
 
-    #=====================================
+    # =====================================
 
     #minimal_test.TestSimulation()
     #minimal_training.TestTraining()
 
+
 if __name__ == "__main__":
     main()
-

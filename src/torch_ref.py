@@ -1,8 +1,8 @@
-import torch
-import numpy as np
-
 from enum import Enum
 from dataclasses import dataclass
+
+import torch
+import numpy as np
 
 class BC(Enum):
     PERIODIC = 0
@@ -14,7 +14,9 @@ class SimulationConfig:
     grid_size_y: int
     tau: float
     gravity: (float, float) = (0.0, 0.0)
-    boundary_conditions: (BC, BC, BC, BC) = (BC.PERIODIC, BC.PERIODIC, BC.PERIODIC, BC.PERIODIC)
+    boundary_conditions: (BC, BC, BC, BC) = (
+        BC.PERIODIC, BC.PERIODIC, BC.PERIODIC, BC.PERIODIC
+    )
 
 class Lbm:
     """Class implementing the Lattice Boltzman D2Q9 scheme for simulating flows using pytorch."""
@@ -39,8 +41,8 @@ class Lbm:
         self.eq_weights  = torch.zeros(self.shape, dtype=torch.float)
 
         self.eq_factors = torch.tensor([
-            4.0/9.0, 
-            1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0, 
+            4.0/9.0,
+            1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0,
             1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0
         ]).reshape(self.shape1d)
 
@@ -108,25 +110,25 @@ class Lbm:
         self.default_ids = [0,1,2,3,4,5,6,7,8]
         self.swapped_ids = [0,2,1,4,3,7,8,5,6]
 
-        #Disable flow at non-periodic boundaries 
-        if (self.boundary_conditions[0] == BC.VON_NEUMANN):
+        #Disable flow at non-periodic boundaries
+        if self.boundary_conditions[0] == BC.VON_NEUMANN:
             for i in range(0, self.grid_size_y):
                 for a in range(0,9):
                     self.indices[a,i,0] = torch.tensor([0,i,a])
 
-        if (self.boundary_conditions[1] == BC.VON_NEUMANN):
+        if self.boundary_conditions[1] == BC.VON_NEUMANN:
             for i in range(0, self.grid_size_x):
                 for a in range(0,9):
                     self.indices[a,0,i] = torch.tensor([i,0,a])
 
-        if (self.boundary_conditions[0] == BC.VON_NEUMANN):
+        if self.boundary_conditions[0] == BC.VON_NEUMANN:
             lx = self.grid_size_x - 1
 
             for i in range(0, self.grid_size_y):
                 for a in range(0,9):
                     self.indices[a,i,lx] = torch.tensor([lx,i,a])
 
-        if (self.boundary_conditions[3] == BC.VON_NEUMANN):
+        if self.boundary_conditions[3] == BC.VON_NEUMANN:
             ly = self.grid_size_y - 1
 
             for i in range(0, self.grid_size_x):
@@ -134,19 +136,27 @@ class Lbm:
                     self.indices[a,ly,i] = torch.tensor([i,ly,a])
 
 
-    def InitStationary(self):
-        self.weights[:,:] = torch.tensor(
-            [4.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0]
-        )
+    def init_stationary(self):
+        """Initializes all weights to a stationary equliribium distribution."""
+        self.weights[:,:] = torch.tensor([
+            4.0/9.0,
+            1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0,
+            1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0
+        ])
 
-    def UpdateMacroscopic(self):
+    def update_macroscopic(self):
+        """(Re)Calculates densities and velocities from new weights."""
+
         self.densities    = torch.sum(self.new_weights, axis=2)
+
         self.velocities_x = torch.einsum("ijk,k->ij", (self.new_weights, self.base_velocities_x))
         self.velocities_x = self.velocities_x / self.densities
+
         self.velocities_y = torch.einsum("ijk,k->ij", (self.new_weights, self.base_velocities_y))
         self.velocities_y = self.velocities_y / self.densities
 
-    def Streaming(self):
+    def streaming(self):
+        """Calculates new weights (after streaming step) from old ones."""
         stream_weights = self.weights[*self.indices.permute(3,2,1,0)]
 
         bounced_weights = torch.zeros(self.shape, dtype=torch.float)
@@ -154,7 +164,8 @@ class Lbm:
 
         self.new_weights = (~self.solid_mask) * stream_weights + self.solid_mask * bounced_weights
 
-    def CalculateEquilibrium(self):
+    def calculate_equilibrium(self):
+        """Calculates equilibrium distributions of weights for all nodes."""
         #Second order approximation to Maxwell distribution:
         # f^eq_i = w_i * rho * (1.0 + 3.0 e_i.u + 4.5 * (e_i.u)^2 - 1.5 u.u)
 
@@ -162,25 +173,29 @@ class Lbm:
         velocities_eq_x = self.velocities_x + self.tau * gx * self.densities
         velocities_eq_y = self.velocities_y + self.tau * gy * self.densities
 
-        eDotUx = self.base_velocities_x.reshape(self.shape1d) * velocities_eq_x.reshape(self.shape2d)
-        eDotUy = self.base_velocities_y.reshape(self.shape1d) * velocities_eq_y.reshape(self.shape2d)
+        e_dot_ux = self.base_velocities_x.reshape(self.shape1d) * velocities_eq_x.reshape(self.shape2d)
+        e_dot_uy = self.base_velocities_y.reshape(self.shape1d) * velocities_eq_y.reshape(self.shape2d)
 
-        eDotU = eDotUx + eDotUy
-        eDotU2 = torch.square(eDotU)
+        e_dot_u = e_dot_ux + e_dot_uy
+        e_dot_u2 = torch.square(e_dot_u)
 
         u2 = torch.square(velocities_eq_x) + torch.square(velocities_eq_y)
 
-        f_tmp = 1.0 + 3.0 * eDotU + 4.5 * eDotU2 - 1.5 * u2.reshape(self.shape2d)
+        f_tmp = 1.0 + 3.0 * e_dot_u + 4.5 * e_dot_u2 - 1.5 * u2.reshape(self.shape2d)
         f_tmp = self.densities.reshape(self.shape2d) * f_tmp
 
         self.eq_weights = f_tmp * self.eq_factors
 
-    def Collision(self):
-        #BGK collision operator:
+    def collision(self):
+        """Performs collision using BGK operator at each node."""
         #f - > f + 1/tau * (f_eq - f) = (1 - 1/tau) * f + f_eq/tau
         self.weights = self.one_minus_tau_inverse * self.new_weights + self.tau_inverse * self.eq_weights
 
-    def HandleBoundary(self, edge_id: int):
+    def handle_boundary(self, edge_id: int):
+        """
+        Enforces Zou He flux boundary condition with perscribed
+        von Neumann velocity at edge given by edge_id
+        """
         horizontal = (edge_id % 2 == 0)
 
         lx = self.grid_size_x - 1
@@ -189,7 +204,7 @@ class Lbm:
         pos_list = [0, 0, lx, ly]
         ingoing_ids_list  = [(4,7,8), (3,7,6), (2,5,6), (1,5,8)]
         outgoint_ids_list = [(2,5,6), (1,5,8), (4,7,8), (3,7,6)]
-        
+
         v = self.boundary_velocities[edge_id]
         pos = pos_list[edge_id]
         in_ids = ingoing_ids_list[edge_id]
@@ -198,35 +213,41 @@ class Lbm:
         mid_ids = (1, 3) if horizontal else (2,4)
 
         if horizontal:
-            rho = self.weights[pos,:,0] + self.weights[pos,:,mid_ids[0]] + self.weights[pos,:,mid_ids[0]]
-            + 2.0 * (self.weights[pos,:,out_ids[0]] + self.weights[pos,:,out_ids[1]] + self.weights[pos,:,out_ids[2]])
+            rho_a = self.weights[pos,:,0] + self.weights[pos,:,mid_ids[0]] + self.weights[pos,:,mid_ids[1]]
+            rho_b = self.weights[pos,:,out_ids[0]] + self.weights[pos,:,out_ids[1]] + self.weights[pos,:,out_ids[2]]
 
+            rho =  rho_a + 2.0 * rho_b
             rho = rho/(1.0 + v)
+
             ru = v * rho
 
             self.weights[pos,:,in_ids[0]] = self.weights[pos,:,out_ids[0]] - (2.0/3.0)*ru
             self.weights[pos,:,in_ids[1]] = self.weights[pos,:,out_ids[1]] - (1.0/6.0)*ru + 0.5*(self.weights[pos,:,mid_ids[0]] - self.weights[pos,:,mid_ids[0]])
             self.weights[pos,:,in_ids[2]] = self.weights[pos,:,out_ids[2]] - (1.0/6.0)*ru + 0.5*(self.weights[pos,:,mid_ids[1]] - self.weights[pos,:,mid_ids[1]])
         else:
-            rho = self.weights[:,pos,0] + self.weights[:,pos,mid_ids[0]] + self.weights[:,pos,mid_ids[1]]
-            + 2.0 * (self.weights[:,pos,out_ids[0]] + self.weights[:,pos,out_ids[1]] + self.weights[:,pos,out_ids[2]])
+            rho_a = self.weights[:,pos,0] + self.weights[:,pos,mid_ids[0]] + self.weights[:,pos,mid_ids[1]]
+            rho_b = self.weights[:,pos,out_ids[0]] + self.weights[:,pos,out_ids[1]] + self.weights[:,pos,out_ids[2]]
 
+            rho = rho_a + 2.0 * rho_b
             rho = rho/(1.0 + v)
+
             ru = v * rho
 
             self.weights[:,pos,in_ids[0]] = self.weights[:,pos,out_ids[0]] - (2.0/3.0)*ru
             self.weights[:,pos,in_ids[1]] = self.weights[:,pos,out_ids[1]] - (1.0/6.0)*ru + 0.5*(self.weights[:,pos,mid_ids[0]] - self.weights[:,pos,mid_ids[1]])
             self.weights[:,pos,in_ids[2]] = self.weights[:,pos,out_ids[2]] - (1.0/6.0)*ru + 0.5*(self.weights[:,pos,mid_ids[1]] - self.weights[:,pos,mid_ids[0]])
 
-    def HandleBoundaries(self):
-        for i in range(0, len(self.boundary_conditions)):
-            if self.boundary_conditions[i] == BC.VON_NEUMANN:
-                self.HandleBoundary(i)
+    def handle_boundaries(self):
+        """Enforces selected boundary conditions for all edges."""
+        for i, bc in enumerate(self.boundary_conditions):
+            if bc == BC.VON_NEUMANN:
+                self.handle_boundary(i)
 
-    def Simulate(self, num_steps: int):
+    def simulate(self, num_steps: int):
+        """Performs all simulation steps a given number of times."""
         for i in range (0, num_steps):
-            self.HandleBoundaries()
-            self.Streaming()
-            self.UpdateMacroscopic()
-            self.CalculateEquilibrium()
-            self.Collision()
+            self.handle_boundaries()
+            self.streaming()
+            self.update_macroscopic()
+            self.calculate_equilibrium()
+            self.collision()

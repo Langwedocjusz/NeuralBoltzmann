@@ -1,6 +1,8 @@
+"""This module implements tools for numerically solving the diffusion equation."""
+
 import torch
 
-import src.plotting as plotting
+#from src import plotting
 
 def get_diffusion_operator(grid_size: int, dt: float):
     """ 
@@ -20,7 +22,7 @@ def get_diffusion_operator(grid_size: int, dt: float):
         #Everywhere else place the stencil at the diagonal
         for j in range(0, grid_size):
             s_id = i-j + 1
-            if 0 <= s_id and s_id <= 2:
+            if 0 <= s_id <= 2:
                 A[i][j] = stencil[s_id]
 
     # (1 + dt A)v = v + d_xx v = v + d_t v
@@ -36,13 +38,17 @@ class Solver:
         self.evolution_operator = get_diffusion_operator(grid_size, dt)
 
     def set_initial_data(self, init: torch.tensor):
+        """Clones the provided tensor data into Solver's solution."""
+
         if self.solution.shape != init.shape:
             raise RuntimeError("Provided initial data doesn't match prevoiusly defined grid size")
 
         self.solution = torch.clone(init)
 
     def evolve(self, num_steps: int):
-        for i in range(0, num_steps):
+        """Applies the evolution operator specified number of times."""
+
+        for _ in range(0, num_steps):
             self.solution = torch.einsum("ij,j->i", self.evolution_operator, self.solution)
 
 
