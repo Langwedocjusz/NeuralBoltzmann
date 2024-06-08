@@ -2,7 +2,10 @@
 
 import numpy as np
 
-from src import reference as ref
+from src.reference import SimulationConfig
+from src.reference import BC
+from src.reference import LbmBGK as Lbm
+
 from src import plotting
 
 def test_macroscopic():
@@ -12,8 +15,8 @@ def test_macroscopic():
     The resulting denisties and velocities are then plotted.
     """
 
-    config = ref.SimulationConfig(3, 3, 0.5)
-    lbm = ref.Lbm(config)
+    config = SimulationConfig(3, 3, 0.5)
+    lbm = Lbm(config)
 
     lbm.new_weights[0,0,0] = 0.33
     lbm.new_weights[1,0,1] = 0.33
@@ -37,8 +40,8 @@ def test_streaming():
     Streaming is then called twice and the movement (with periodic boundary conditions) is plotted.
     """
 
-    config = ref.SimulationConfig(3, 3, 0.5)
-    lbm = ref.Lbm(config)
+    config = SimulationConfig(3, 3, 0.5)
+    lbm = Lbm(config)
 
     for test_id in range(0,9):
         lbm.weights     = np.zeros(lbm.shape, dtype=float)
@@ -60,8 +63,8 @@ def test_equilibrium():
     The resulting equilibrium weights are then printed.
     """
 
-    config = ref.SimulationConfig(3, 3, 0.5)
-    lbm = ref.Lbm(config)
+    config = SimulationConfig(3, 3, 0.5)
+    lbm = Lbm(config)
 
     lbm.densities[:,:] = 0.1
     lbm.new_weights = np.full(lbm.shape, 0.01)
@@ -87,11 +90,11 @@ def test_boundary():
 
     size = 20
 
-    config = ref.SimulationConfig(size, size, 0.5)
-    config.boundary_conditions = (ref.BC.PERIODIC, ref.BC.VON_NEUMANN, ref.BC.PERIODIC, ref.BC.VON_NEUMANN)
-    #config.boundary_conditions = (ref.BC.VON_NEUMANN, ref.BC.PERIODIC, ref.BC.VON_NEUMANN, ref.BC.PERIODIC)
+    config = SimulationConfig(size, size, 0.5)
+    config.boundary_conditions = (BC.PERIODIC, BC.VON_NEUMANN, BC.PERIODIC, BC.VON_NEUMANN)
+    #config.boundary_conditions = (BC.VON_NEUMANN, BC.PERIODIC, BC.VON_NEUMANN, BC.PERIODIC)
 
-    lbm = ref.Lbm(config)
+    lbm = Lbm(config)
     lbm.init_stationary()
 
     v = 0.1
@@ -123,8 +126,8 @@ def test_simulation():
 
     size = 200
 
-    config = ref.SimulationConfig(size, size, 0.5)
-    lbm = ref.Lbm(config)
+    config = SimulationConfig(size, size, 0.5)
+    lbm = Lbm(config)
     lbm.init_stationary()
 
     circle_rad = 15.0
@@ -176,8 +179,8 @@ def test_simulation_poiseuille():
     size_y = 20
     g = 0.0001
 
-    config = ref.SimulationConfig(size_x, size_y, 1.0, (0.0, g))
-    lbm = ref.Lbm(config)
+    config = SimulationConfig(size_x, size_y, 1.0, (0.0, g))
+    lbm = Lbm(config)
     lbm.init_stationary()
 
     lbm.solid_mask[:,0]        = True
@@ -225,12 +228,12 @@ def simulate_cylinder():
     nu = v*rad/Re
     tau = 3.0*nu+0.5
 
-    config = ref.SimulationConfig(size_x, size_y, tau)
+    config = SimulationConfig(size_x, size_y, tau)
     config.boundary_conditions = (
-        ref.BC.PERIODIC, ref.BC.VON_NEUMANN, ref.BC.PERIODIC, ref.BC.VON_NEUMANN
+        BC.PERIODIC, BC.VON_NEUMANN, BC.PERIODIC, BC.VON_NEUMANN
     )
 
-    lbm = ref.Lbm(config)
+    lbm = Lbm(config)
     lbm.init_stationary()
     lbm.weights *= 1.0
 

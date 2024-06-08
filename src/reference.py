@@ -1,14 +1,19 @@
+"""This module implements reference LBM solvers using Numpy"""
+
 from enum import Enum
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
 
 import numpy as np
 
 class BC(Enum):
+    """Enum representing types of boundary conditions"""
     PERIODIC = 0
     VON_NEUMANN = 1
 
 @dataclass(slots=True)
 class SimulationConfig:
+    """Dataclass representing configuration of the lbm simulation."""
     grid_size_x: int
     grid_size_y: int
     tau: float
@@ -17,8 +22,8 @@ class SimulationConfig:
         BC.PERIODIC, BC.PERIODIC, BC.PERIODIC, BC.PERIODIC
     )
 
-class Lbm:
-    """Class implementing the Lattice Boltzman D2Q9 scheme for simulating flows using numpy."""
+class Lbm(ABC):
+    """Abstract base for classes implementing the Lattice Boltzman D2Q9 scheme for simulating flows using numpy."""
 
     def __init__(self, config: SimulationConfig):
         self.tau = config.tau
@@ -109,7 +114,7 @@ class Lbm:
         self.default_ids = [0,1,2,3,4,5,6,7,8]
         self.swapped_ids = [0,2,1,4,3,7,8,5,6]
 
-        #Disable flow at non-periodic boundaries 
+        #Disable flow at non-periodic boundaries
         if self.boundary_conditions[0] == BC.VON_NEUMANN:
             for i in range(0, self.grid_size_y):
                 for a in range(0,9):
@@ -138,8 +143,8 @@ class Lbm:
     def init_stationary(self):
         """Initializes all weights to a stationary equliribium distribution."""
         self.weights[:,:] = [
-            4.0/9.0, 
-            1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0, 
+            4.0/9.0,
+            1.0/9.0, 1.0/9.0, 1.0/9.0, 1.0/9.0,
             1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0
         ]
 
@@ -163,36 +168,17 @@ class Lbm:
 
         self.new_weights = (1.0 - self.solid_mask) * stream_weights + self.solid_mask * bounced_weights
 
-    def calculate_equilibrium(self):
-        """Calculates equilibrium distributions of weights for all nodes."""
-        #Second order approximation to Maxwell distribution:
-        # f^eq_i = w_i * rho * (1.0 + 3.0 e_i.u + 4.5 * (e_i.u)^2 - 1.5 u.u)
+    @abstractmethod
+    def calculate_equilibrium(self) -> None:
+        pass
 
-        (gx, gy) = self.gravity
-        velocities_eq_x = self.velocities_x + self.tau * gx * self.densities
-        velocities_eq_y = self.velocities_y + self.tau * gy * self.densities
+    @abstractmethod
+    def collision(self) -> None:
+        pass
 
-        e_dot_ux = self.base_velocities_x.reshape(self.shape1d) * velocities_eq_x.reshape(self.shape2d)
-        e_dot_uy = self.base_velocities_y.reshape(self.shape1d) * velocities_eq_y.reshape(self.shape2d)
-
-        e_dot_u = e_dot_ux + e_dot_uy
-        e_dot_u2 = np.square(e_dot_u)
-
-        u2 = np.square(velocities_eq_x) + np.square(velocities_eq_y)
-
-        f_tmp = 1.0 + 3.0 * e_dot_u + 4.5 * e_dot_u2 - 1.5 * u2.reshape(self.shape2d)
-        f_tmp = self.densities.reshape(self.shape2d) * f_tmp
-
-        self.eq_weights = f_tmp * self.eq_factors
-
-    def collision(self):
-        """Performs collision using BGK operator at each node."""
-        #f - > f + 1/tau * (f_eq - f) = (1 - 1/tau) * f + f_eq/tau
-        self.weights = self.one_minus_tau_inverse * self.new_weights + self.tau_inverse * self.eq_weights
-
-    def handle_boundary(self, edge_id: int):    
+    def handle_boundary(self, edge_id: int):
         """
-        Enforces Zou He flux boundary condition with perscribed 
+        Enforces Zou He flux boundary condition with perscribed
         von Neumann velocity at edge given by edge_id
         """
         horizontal = (edge_id % 2 == 0)
@@ -203,7 +189,7 @@ class Lbm:
         pos_list = [0, 0, lx, ly]
         ingoing_ids_list  = [(4,7,8), (3,7,6), (2,5,6), (1,5,8)]
         outgoint_ids_list = [(2,5,6), (1,5,8), (4,7,8), (3,7,6)]
-        
+
         v = self.boundary_velocities[edge_id]
         pos = pos_list[edge_id]
         in_ids = ingoing_ids_list[edge_id]
@@ -241,7 +227,7 @@ class Lbm:
         for i, bc in enumerate(self.boundary_conditions):
             if bc == BC.VON_NEUMANN:
                 self.handle_boundary(i)
-            
+
     def simulate(self, num_steps: int):
         """Performs all simulation steps a given number of times."""
         for _ in range (0, num_steps):
@@ -250,3 +236,33 @@ class Lbm:
             self.update_macroscopic()
             self.calculate_equilibrium()
             self.collision()
+
+class LbmBGK(Lbm):
+    """Specialization of the Lbm class, that performs collisions using single relaxation BGK operator."""
+
+    def calculate_equilibrium(self):
+        """Calculates equilibrium distributions of weights for all nodes."""
+        #Second order approximation to Maxwell distribution:
+        # f^eq_i = w_i * rho * (1.0 + 3.0 e_i.u + 4.5 * (e_i.u)^2 - 1.5 u.u)
+
+        (gx, gy) = self.gravity
+        velocities_eq_x = self.velocities_x + self.tau * gx * self.densities
+        velocities_eq_y = self.velocities_y + self.tau * gy * self.densities
+
+        e_dot_ux = self.base_velocities_x.reshape(self.shape1d) * velocities_eq_x.reshape(self.shape2d)
+        e_dot_uy = self.base_velocities_y.reshape(self.shape1d) * velocities_eq_y.reshape(self.shape2d)
+
+        e_dot_u = e_dot_ux + e_dot_uy
+        e_dot_u2 = np.square(e_dot_u)
+
+        u2 = np.square(velocities_eq_x) + np.square(velocities_eq_y)
+
+        f_tmp = 1.0 + 3.0 * e_dot_u + 4.5 * e_dot_u2 - 1.5 * u2.reshape(self.shape2d)
+        f_tmp = self.densities.reshape(self.shape2d) * f_tmp
+
+        self.eq_weights = f_tmp * self.eq_factors
+
+    def collision(self):
+        """Performs collision using BGK operator at each node."""
+        #f - > f + 1/tau * (f_eq - f) = (1 - 1/tau) * f + f_eq/tau
+        self.weights = self.one_minus_tau_inverse * self.new_weights + self.tau_inverse * self.eq_weights

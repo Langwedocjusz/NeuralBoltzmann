@@ -1,15 +1,20 @@
+"""This module implements reference LBM solvers using Pytorch"""
+
 from enum import Enum
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
 
 import torch
 import numpy as np
 
 class BC(Enum):
+    """Enum representing types of boundary conditions"""
     PERIODIC = 0
     VON_NEUMANN = 1
 
 @dataclass(slots=True)
 class SimulationConfig:
+    """Dataclass representing configuration of the lbm simulation."""
     grid_size_x: int
     grid_size_y: int
     tau: float
@@ -19,7 +24,7 @@ class SimulationConfig:
     )
 
 class Lbm:
-    """Class implementing the Lattice Boltzman D2Q9 scheme for simulating flows using pytorch."""
+    """Abstract base for classes implementing the Lattice Boltzman D2Q9 scheme for simulating flows using pytorch."""
 
     def __init__(self, config: SimulationConfig):
         self.tau = config.tau
@@ -164,32 +169,13 @@ class Lbm:
 
         self.new_weights = (~self.solid_mask) * stream_weights + self.solid_mask * bounced_weights
 
-    def calculate_equilibrium(self):
-        """Calculates equilibrium distributions of weights for all nodes."""
-        #Second order approximation to Maxwell distribution:
-        # f^eq_i = w_i * rho * (1.0 + 3.0 e_i.u + 4.5 * (e_i.u)^2 - 1.5 u.u)
+    @abstractmethod
+    def calculate_equilibrium(self) -> None:
+        pass
 
-        (gx, gy) = self.gravity
-        velocities_eq_x = self.velocities_x + self.tau * gx * self.densities
-        velocities_eq_y = self.velocities_y + self.tau * gy * self.densities
-
-        e_dot_ux = self.base_velocities_x.reshape(self.shape1d) * velocities_eq_x.reshape(self.shape2d)
-        e_dot_uy = self.base_velocities_y.reshape(self.shape1d) * velocities_eq_y.reshape(self.shape2d)
-
-        e_dot_u = e_dot_ux + e_dot_uy
-        e_dot_u2 = torch.square(e_dot_u)
-
-        u2 = torch.square(velocities_eq_x) + torch.square(velocities_eq_y)
-
-        f_tmp = 1.0 + 3.0 * e_dot_u + 4.5 * e_dot_u2 - 1.5 * u2.reshape(self.shape2d)
-        f_tmp = self.densities.reshape(self.shape2d) * f_tmp
-
-        self.eq_weights = f_tmp * self.eq_factors
-
-    def collision(self):
-        """Performs collision using BGK operator at each node."""
-        #f - > f + 1/tau * (f_eq - f) = (1 - 1/tau) * f + f_eq/tau
-        self.weights = self.one_minus_tau_inverse * self.new_weights + self.tau_inverse * self.eq_weights
+    @abstractmethod
+    def collision(self) -> None:
+        pass
 
     def handle_boundary(self, edge_id: int):
         """
@@ -245,9 +231,39 @@ class Lbm:
 
     def simulate(self, num_steps: int):
         """Performs all simulation steps a given number of times."""
-        for i in range (0, num_steps):
+        for _ in range (0, num_steps):
             self.handle_boundaries()
             self.streaming()
             self.update_macroscopic()
             self.calculate_equilibrium()
             self.collision()
+
+class LbmBGK(Lbm):
+    """Specialization of the Lbm class, that performs collisions using single relaxation BGK operator."""
+
+    def calculate_equilibrium(self):
+        """Calculates equilibrium distributions of weights for all nodes."""
+        #Second order approximation to Maxwell distribution:
+        # f^eq_i = w_i * rho * (1.0 + 3.0 e_i.u + 4.5 * (e_i.u)^2 - 1.5 u.u)
+
+        (gx, gy) = self.gravity
+        velocities_eq_x = self.velocities_x + self.tau * gx * self.densities
+        velocities_eq_y = self.velocities_y + self.tau * gy * self.densities
+
+        e_dot_ux = self.base_velocities_x.reshape(self.shape1d) * velocities_eq_x.reshape(self.shape2d)
+        e_dot_uy = self.base_velocities_y.reshape(self.shape1d) * velocities_eq_y.reshape(self.shape2d)
+
+        e_dot_u = e_dot_ux + e_dot_uy
+        e_dot_u2 = torch.square(e_dot_u)
+
+        u2 = torch.square(velocities_eq_x) + torch.square(velocities_eq_y)
+
+        f_tmp = 1.0 + 3.0 * e_dot_u + 4.5 * e_dot_u2 - 1.5 * u2.reshape(self.shape2d)
+        f_tmp = self.densities.reshape(self.shape2d) * f_tmp
+
+        self.eq_weights = f_tmp * self.eq_factors
+
+    def collision(self):
+        """Performs collision using BGK operator at each node."""
+        #f - > f + 1/tau * (f_eq - f) = (1 - 1/tau) * f + f_eq/tau
+        self.weights = self.one_minus_tau_inverse * self.new_weights + self.tau_inverse * self.eq_weights
