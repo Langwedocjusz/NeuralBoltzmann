@@ -7,7 +7,7 @@ from src.torch_ref import SimulationConfig
 from src.torch_ref import BC
 from src.torch_ref import LbmBGK as Lbm
 
-import src.plotting as plotting
+from src import plotting
 
 def test_macroscopic():
     """
