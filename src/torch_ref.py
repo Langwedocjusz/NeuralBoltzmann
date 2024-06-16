@@ -267,3 +267,108 @@ class LbmBGK(Lbm):
         """Performs collision using BGK operator at each node."""
         #f - > f + 1/tau * (f_eq - f) = (1 - 1/tau) * f + f_eq/tau
         self.weights = self.one_minus_tau_inverse * self.new_weights + self.tau_inverse * self.eq_weights
+
+
+class LbmMomentH(Lbm):
+    """Specialization of the Lbm class, that performs collisions in the Hermite moment space"""
+
+    def __init__(self, config: SimulationConfig):
+        super().__init__(config)
+
+        rho = torch.tensor([ 1, 1, 1, 1, 1, 1, 1, 1, 1], dtype=torch.float)
+        jx  = torch.tensor([ 0, 1, 0,-1, 0, 1,-1,-1, 1], dtype=torch.float)
+        jy  = torch.tensor([ 0, 0, 1, 0,-1, 1, 1,-1,-1], dtype=torch.float)
+        pxx = torch.tensor([-1, 2,-1, 2,-1, 2, 2, 2, 2], dtype=torch.float) / 3.0
+        pyy = torch.tensor([-1,-1, 2,-1, 2, 2, 2, 2, 2], dtype=torch.float) / 3.0
+        pxy = torch.tensor([ 0, 0, 0, 0, 0, 1,-1, 1,-1], dtype=torch.float)
+        gmx = torch.tensor([ 0,-1, 0, 1, 0, 2,-2,-2, 2], dtype=torch.float) / 3.0
+        gmy = torch.tensor([ 0, 0,-1, 0, 1, 2, 2,-2,-2], dtype=torch.float) / 3.0
+        gm  = torch.tensor([ 1,-2,-2,-2,-2, 4, 4, 4, 4], dtype=torch.float) / 9.0
+
+        self.weights_to_moments = torch.stack(
+            [rho, jx, jy, pxx, pyy, pxy, gmx, gmy, gm]
+        );
+
+        self.moments_to_weights = torch.inverse(self.weights_to_moments)
+
+
+    def calculate_equilibrium(self):
+        """Calculates equilibrium distributions of moments for all nodes."""
+        (gx, gy) = self.gravity
+
+        ux = self.velocities_x + self.tau * gx * self.densities
+        uy = self.velocities_y + self.tau * gy * self.densities
+
+        rho = self.densities
+        jx = self.densities * ux
+        jy = self.densities * uy
+
+        pxx = rho * ux * ux
+        pyy = rho * uy * uy
+        pxy = rho * ux * uy
+
+        gmx = rho * ux * uy * uy
+        gmy = rho * ux * ux * uy
+        gm  = rho * ux * ux * uy * uy
+
+        self.eq_weights = torch.stack(
+            [rho, jx, jy, pxx, pyy, pxy, gmx, gmy, gm], dim=2
+        )
+
+    def collision(self):
+        """Performs collision using in moment space at each node."""
+        moments = torch.einsum("ab,ijb->ija", self.weights_to_moments, self.new_weights)
+
+        new_moments = self.one_minus_tau_inverse * moments + self.tau_inverse * self.eq_weights
+
+        self.weights = torch.einsum("ab,ijb->ija", self.moments_to_weights, new_moments)
+
+class LbmMomentGS(Lbm):
+    """Specialization of the Lbm class, that performs collisions in the Gram-Schmidt moment space"""
+
+    def __init__(self, config: SimulationConfig):
+        super().__init__(config)
+
+        rho = torch.tensor([ 1, 1, 1, 1, 1, 1, 1, 1, 1], dtype=torch.float)
+        jx  = torch.tensor([ 0, 1, 0,-1, 0, 1,-1,-1, 1], dtype=torch.float)
+        jy  = torch.tensor([ 0, 0, 1, 0,-1, 1, 1,-1,-1], dtype=torch.float)
+        e   = torch.tensor([-4,-1,-1,-1,-1, 2, 2, 2, 2], dtype=torch.float)
+        eps = torch.tensor([ 4,-2,-2,-2,-2, 1, 1, 1, 1], dtype=torch.float)
+        qx  = torch.tensor([ 0,-2, 0, 2, 0, 1,-1,-1, 1], dtype=torch.float)
+        qy  = torch.tensor([ 0, 0,-2, 0, 2, 1, 1,-1,-1], dtype=torch.float)
+        pxx = torch.tensor([ 0, 1,-1, 1,-1, 0, 0, 0, 0], dtype=torch.float)
+        pxy = torch.tensor([ 0, 0, 0, 0, 0, 1,-1, 1,-1], dtype=torch.float)
+
+        self.weights_to_moments = torch.stack(
+            [rho, jx, jy, e, eps, qx, qy, pxx, pxy]
+        );
+
+        self.moments_to_weights = torch.inverse(self.weights_to_moments)
+
+
+    def calculate_equilibrium(self):
+        """Calculates equilibrium distributions of moments for all nodes."""
+        (gx, gy) = self.gravity
+
+        rho = self.densities
+        jx = self.densities * (self.velocities_x + self.tau * gx * self.densities)
+        jy = self.densities * (self.velocities_y + self.tau * gy * self.densities)
+
+        e   = -2.0*rho + 3.0*(jx*jx + jy*jy)
+        eps =      rho - 3.0*(jx*jx + jy*jy)
+        qx  = -jx
+        qy  = -jy
+        pxx = (1.0/3.0)*(jx*jx - jy*jy)
+        pxy = (1.0/3.0)*jx*jy
+
+        self.eq_weights = torch.stack(
+            [rho, jx, jy, e, eps, qx, qy, pxx, pxy], dim=2
+        )
+
+    def collision(self):
+        """Performs collision using in moment space at each node."""
+        moments = torch.einsum("ab,ijb->ija", self.weights_to_moments, self.new_weights)
+
+        new_moments = self.one_minus_tau_inverse * moments + self.tau_inverse * self.eq_weights
+
+        self.weights = torch.einsum("ab,ijb->ija", self.moments_to_weights, new_moments)
