@@ -1,26 +1,11 @@
 """This module implements reference LBM solvers using Numpy"""
 
-from enum import Enum
-from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
 import numpy as np
 
-class BC(Enum):
-    """Enum representing types of boundary conditions"""
-    PERIODIC = 0
-    VON_NEUMANN = 1
-
-@dataclass(slots=True)
-class SimulationConfig:
-    """Dataclass representing configuration of the lbm simulation."""
-    grid_size_x: int
-    grid_size_y: int
-    tau: float
-    gravity: (float, float) = (0.0, 0.0)
-    boundary_conditions: (BC, BC, BC, BC) = (
-        BC.PERIODIC, BC.PERIODIC, BC.PERIODIC, BC.PERIODIC
-    )
+from src.simconfig import BC
+from src.simconfig import SimulationConfig
 
 class Lbm(ABC):
     """Abstract base for classes implementing the Lattice Boltzman D2Q9 scheme for simulating flows using numpy."""

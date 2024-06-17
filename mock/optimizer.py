@@ -1,5 +1,5 @@
 """
-This module implements training of simple neural networks 
+This module implements training of simple neural networks
 to recover numeric kernel of the diffusion equation.
 """
 
@@ -11,6 +11,8 @@ from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
 
 from src import plotting
+from src.learning_config import LearningConfig
+
 from mock.classical_solver import evolve_to_convergence
 
 # Simulation domain:
@@ -41,7 +43,7 @@ class IteratedLinearNet(nn.Module):
 
 class CustomConvoLayer(nn.Module):
     """
-    Custom layer that computes convolution of input with weights, 
+    Custom layer that computes convolution of input with weights,
     while keeping boundary values fixed
     """
 
@@ -123,8 +125,8 @@ def point_impulses():
 def triangle_impulses():
     """
     Returns a pair (inputs, targets).
-    Inputs are traingle functions with different widths and heights, 
-    centered around different points. Targets are their converged time evolutions, 
+    Inputs are traingle functions with different widths and heights,
+    centered around different points. Targets are their converged time evolutions,
     obtained using finite difference solver for the diffusion equation.
     """
 
@@ -168,13 +170,6 @@ def get_training_dataloader(generating_fn):
     dataloader = DataLoader(dataset, batch_size=data_count)
 
     return dataloader
-
-
-@dataclass(slots=True)
-class LearningConfig:
-    learning_epochs: int
-    learning_rate: float
-    min_loss: float
 
 
 def train_linear(config: LearningConfig):

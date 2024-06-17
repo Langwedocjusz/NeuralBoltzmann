@@ -1,18 +1,19 @@
 import src.reference_test as ref_test
 import src.torch_ref_test as torch_test
-import src.minimal_model_test as minimal_test
-import src.minimal_training as minimal_training
 
-from mock.optimizer import LearningConfig
+from src.learning_config import LearningConfig
+
 from mock.optimizer import train_linear
 from mock.optimizer import train_custom
 
+from src.lbm_training import train
+from src.lbm_training import test_coherence
 
 def main():
-    config = LearningConfig(2000, 1e-3, 1e-3)
+    #config = LearningConfig(2000, 1e-3, 1e-3)
 
     #train_linear(config)
-    train_custom(config)
+    #train_custom(config)
 
     # =====================================
 
@@ -38,8 +39,10 @@ def main():
 
     # =====================================
 
-    #minimal_test.TestSimulation()
-    #minimal_training.TestTraining()
+    #test_coherence()
+
+    config = LearningConfig(2000, 1e-3, 1e-3)
+    train(config)
 
 
 if __name__ == "__main__":
