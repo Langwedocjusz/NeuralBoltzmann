@@ -51,10 +51,10 @@ class NoEqLbmHermite(BaseLbm):
 class LBMLayer(nn.Module):
     """
     This class implements neural network layer that performs
-    one simulation step of the lbm scheme on the input data.
+    a given number of simulation steps of the lbm scheme on the input data.
     """
 
-    def __init__(self, config: SimulationConfig):
+    def __init__(self, config: SimulationConfig, iterations: int = 1):
         super().__init__()
 
         #Trainable parameters
@@ -62,6 +62,8 @@ class LBMLayer(nn.Module):
 
         #The rest of the lbm infrastracture
         self.lbm = NoEqLbmHermite(config)
+
+        self.iterations = iterations
 
     def calculate_equilibrium(self):
         """Performs calculation of the equilibrium moments using autograd-enabled weights"""
@@ -87,16 +89,17 @@ class LBMLayer(nn.Module):
         )
 
     def forward(self, input):
-        """Performs one step of the lbm scheme on input."""
+        """Performs a set number of simulation steps using lbm scheme on input."""
         self.lbm.weights = input.clone()
 
-        self.lbm.handle_boundaries()
-        self.lbm.streaming()
-        self.lbm.update_macroscopic()
+        for _ in range(self.iterations):
+            self.lbm.handle_boundaries()
+            self.lbm.streaming()
+            self.lbm.update_macroscopic()
 
-        #Equilibrium is computed outside of the lbm:
-        self.calculate_equilibrium()
+            #Equilibrium is computed outside of the lbm:
+            self.calculate_equilibrium()
 
-        self.lbm.collision()
+            self.lbm.collision()
 
         return self.lbm.weights
