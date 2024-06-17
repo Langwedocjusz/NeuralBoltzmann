@@ -41,7 +41,7 @@ def main():
 
     #test_coherence()
 
-    config = LearningConfig(2000, 1e-3, 1e-3)
+    config = LearningConfig(5000, 1e-3, 1e-3)
     train(config)
 
 

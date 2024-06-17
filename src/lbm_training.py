@@ -1,6 +1,6 @@
 """This module implements training of the lbm-scheme based NN layers."""
 
-from dataclasses import dataclass
+import math
 
 import torch
 from torch import nn
@@ -12,17 +12,35 @@ from src.learning_config import LearningConfig
 from src.lbm_layer import LBMLayer
 from src.torch_ref import LbmMomentH as RefLbm
 
+from src import plotting
+
 def train(lconf: LearningConfig):
-    config = SimulationConfig(5, 5, 0.5)
+    grid_size = 15
+
+    config = SimulationConfig(grid_size, grid_size, 0.5)
 
     ref_solver = RefLbm(config)
     ref_solver.init_stationary()
-    ref_solver.weights[2,2] *= 2.0
+
+    def gaussian(i: int, j: int) -> float:
+        width = 2.0
+
+        x = (i-grid_size/2.0)/width
+        y = (j-grid_size/2.0)/width
+
+        return 1.0 + math.exp(-(x*x + y*y))
+
+    for i in range(grid_size):
+        for j in range(grid_size):
+            ref_solver.weights[i,j] *= gaussian(i,j)
 
     initial_data = ref_solver.weights.clone()
 
     ref_solver.simulate(1)
     target = ref_solver.weights.clone()
+
+    plotting.ShowHeatmap(initial_data[:,:,0], "Initial data")
+    plotting.ShowHeatmap(target[:,:,0], "Target")
 
     model = LBMLayer(config)
     criterion = nn.MSELoss(reduction='sum')
