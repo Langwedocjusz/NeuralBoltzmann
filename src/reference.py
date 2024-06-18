@@ -8,7 +8,10 @@ from src.simconfig import BC
 from src.simconfig import SimulationConfig
 
 class Lbm(ABC):
-    """Abstract base for classes implementing the Lattice Boltzman D2Q9 scheme for simulating flows using numpy."""
+    """
+    Abstract base for classes implementing the Lattice Boltzman
+    D2Q9 scheme for simulating flows using numpy.
+    """
 
     def __init__(self, config: SimulationConfig):
         self.tau = config.tau
@@ -151,22 +154,29 @@ class Lbm(ABC):
         bounced_weights = np.zeros(self.shape, dtype=float)
         bounced_weights[:,:,self.default_ids] = self.weights[:,:,self.swapped_ids]
 
-        self.new_weights = (1.0 - self.solid_mask) * stream_weights + self.solid_mask * bounced_weights
+        self.new_weights = (1.0 - self.solid_mask) * stream_weights \
+                         + self.solid_mask * bounced_weights
 
     @abstractmethod
     def calculate_equilibrium(self) -> None:
-        pass
+        """
+        Abstract method for implementing equilibrium computation,
+        meant to be overwritten in subclasses.
+        """
 
     @abstractmethod
     def collision(self) -> None:
-        pass
+        """
+        Abstract method for implementing collisions,
+        meant to be overwritten in subclasses.
+        """
 
     def handle_boundary(self, edge_id: int):
         """
         Enforces Zou He flux boundary condition with perscribed
         von Neumann velocity at edge given by edge_id
         """
-        horizontal = (edge_id % 2 == 0)
+        horizontal = edge_id % 2 == 0
 
         lx = self.grid_size_x - 1
         ly = self.grid_size_y - 1
@@ -183,8 +193,11 @@ class Lbm(ABC):
         mid_ids = (1,3) if horizontal else (2,4)
 
         if horizontal:
-            rho_a = self.weights[pos,:,0] + self.weights[pos,:,mid_ids[0]] + self.weights[pos,:,mid_ids[1]]
-            rho_b = self.weights[pos,:,out_ids[0]] + self.weights[pos,:,out_ids[1]] + self.weights[pos,:,out_ids[2]]
+            rho_a = self.weights[pos,:,0] \
+                  + self.weights[pos,:,mid_ids[0]] + self.weights[pos,:,mid_ids[1]]
+
+            rho_b = self.weights[pos,:,out_ids[0]] \
+                  + self.weights[pos,:,out_ids[1]] + self.weights[pos,:,out_ids[2]]
 
             rho = rho_a + 2.0 * rho_b
             rho = rho/(1.0 + v)
@@ -250,10 +263,14 @@ class LbmBGK(Lbm):
     def collision(self):
         """Performs collision using BGK operator at each node."""
         #f - > f + 1/tau * (f_eq - f) = (1 - 1/tau) * f + f_eq/tau
-        self.weights = self.one_minus_tau_inverse * self.new_weights + self.tau_inverse * self.eq_weights
+        self.weights = self.one_minus_tau_inverse * self.new_weights \
+                     + self.tau_inverse * self.eq_weights
 
 class LbmMomentH(Lbm):
-    """Specialization of the Lbm class, that performs collisions in the Hermite moment space"""
+    """
+    Specialization of the Lbm class, that performs collisions
+    in the Hermite moment space
+    """
 
     def __init__(self, config: SimulationConfig):
         super().__init__(config)
@@ -270,7 +287,7 @@ class LbmMomentH(Lbm):
 
         self.weights_to_moments = np.stack(
             [rho, jx, jy, pxx, pyy, pxy, gmx, gmy, gm]
-        );
+        )
 
         self.moments_to_weights = np.linalg.inv(self.weights_to_moments)
 
@@ -302,12 +319,16 @@ class LbmMomentH(Lbm):
         """Performs collision using in moment space at each node."""
         moments = np.einsum("ab,ijb->ija", self.weights_to_moments, self.new_weights)
 
-        new_moments = self.one_minus_tau_inverse * moments + self.tau_inverse * self.eq_weights
+        new_moments = self.one_minus_tau_inverse * moments \
+                    + self.tau_inverse * self.eq_weights
 
         self.weights = np.einsum("ab,ijb->ija", self.moments_to_weights, new_moments)
 
 class LbmMomentGS(Lbm):
-    """Specialization of the Lbm class, that performs collisions in the Gram-Schmidt moment space"""
+    """
+    Specialization of the Lbm class, that performs collisions
+    in the Gram-Schmidt moment space
+    """
 
     def __init__(self, config: SimulationConfig):
         super().__init__(config)
@@ -324,7 +345,7 @@ class LbmMomentGS(Lbm):
 
         self.weights_to_moments = np.stack(
             [rho, jx, jy, e, eps, qx, qy, pxx, pxy]
-        );
+        )
 
         self.moments_to_weights = np.linalg.inv(self.weights_to_moments)
 
@@ -352,6 +373,7 @@ class LbmMomentGS(Lbm):
         """Performs collision using in moment space at each node."""
         moments = np.einsum("ab,ijb->ija", self.weights_to_moments, self.new_weights)
 
-        new_moments = self.one_minus_tau_inverse * moments + self.tau_inverse * self.eq_weights
+        new_moments = self.one_minus_tau_inverse * moments \
+                    + self.tau_inverse * self.eq_weights
 
         self.weights = np.einsum("ab,ijb->ija", self.moments_to_weights, new_moments)

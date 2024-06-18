@@ -2,15 +2,14 @@ import src.reference_test as ref_test
 import src.torch_ref_test as torch_test
 
 from src.learning_config import LearningConfig
+from src.lbm_training import train_gaussian
+from src.lbm_training import train_poiseuille
 
 from mock.optimizer import train_linear
 from mock.optimizer import train_custom
 
-from src.lbm_training import train_gaussian
-from src.lbm_training import train_poiseuille
-
 def main():
-    #config = LearningConfig(2000, 1e-3, 1e-3)
+    config = LearningConfig(2000, 1e-3, 1e-3)
 
     #train_linear(config)
     #train_custom(config)
@@ -39,10 +38,9 @@ def main():
 
     # =====================================
 
-    #test_coherence()
-
     #config = LearningConfig(10000, 1e-3, 1e-3)
     #train_gaussian(config)
+
     config = LearningConfig(2500, 1e-3, 1e-3)
     train_poiseuille(config)
 

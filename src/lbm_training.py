@@ -39,6 +39,10 @@ def train_generic(model, initial_data, target, config: LearningConfig):
         optimizer.step()
 
 def get_initial_data_gaussian(config: SimulationConfig):
+    """
+    Returns initial weights for lbm, density of which is a gaussian function.
+    """
+
     ref_solver = RefLbm(config)
     ref_solver.init_stationary()
 
@@ -57,6 +61,11 @@ def get_initial_data_gaussian(config: SimulationConfig):
     return ref_solver.weights
 
 def get_target(initial_data, config:SimulationConfig, num_steps: int = 1):
+    """
+    Returns initial data after evolving it a given number
+    of steps with the reference solver.
+    """
+
     ref_solver = RefLbm(config)
     ref_solver.weights = initial_data.clone()
 
@@ -65,6 +74,11 @@ def get_target(initial_data, config:SimulationConfig, num_steps: int = 1):
     return ref_solver.weights
 
 def train_gaussian(lconf: LearningConfig):
+    """
+    Trains an LBM layer using a setup that evolves
+    a gaussian packet of higher density fluid.
+    """
+
     grid_size: int = 15
     sim_steps: int = 3
 
@@ -73,8 +87,8 @@ def train_gaussian(lconf: LearningConfig):
     initial_data = get_initial_data_gaussian(config)
     target = get_target(initial_data, config, sim_steps)
 
-    plotting.ShowHeatmap(initial_data[:,:,0], "Initial data")
-    plotting.ShowHeatmap(target[:,:,0], "Target")
+    plotting.show_heatmap(initial_data[:,:,0], "Initial data")
+    plotting.show_heatmap(target[:,:,0], "Target")
 
     model = LbmLayer(config, sim_steps)
 
@@ -86,6 +100,11 @@ def train_gaussian(lconf: LearningConfig):
     print(f"Obtained: {model.weight.data}")
 
 def train_poiseuille(lconf: LearningConfig):
+    """
+    Trains an LBM layer using a minimal setup that results
+    with a flow of parabolic (Poiseuille) profile.
+    """
+
     sim_steps: int = 20
 
     size_x: int = 3
@@ -124,7 +143,7 @@ def train_poiseuille(lconf: LearningConfig):
 
     functions = [target_v, result_v]
     names = ['target', 'result']
-    plotting.ShowFunctions1d(functions, names, 'velocity profile')
+    plotting.show_functions_1d(functions, names, 'velocity profile')
 
     expected = model.get_expected_weights()
 

@@ -32,13 +32,12 @@ class NoEqLbmHermite(Lbm):
 
         self.weights_to_moments = torch.stack(
             [rho, jx, jy, pxx, pyy, pxy, gmx, gmy, gm]
-        );
+        )
 
         self.moments_to_weights = torch.inverse(self.weights_to_moments)
 
     def calculate_equilibrium(self):
         """Does nothing by design."""
-        pass
 
     def collision(self):
         """Performs collision in moment space at each node."""
@@ -73,13 +72,12 @@ class NoEqLbmGramSchmidt(Lbm):
 
         self.weights_to_moments = torch.stack(
             [rho, jx, jy, e, eps, qx, qy, pxx, pxy]
-        );
+        )
 
         self.moments_to_weights = torch.inverse(self.weights_to_moments)
 
     def calculate_equilibrium(self):
         """Does nothing by design."""
-        pass
 
     def collision(self):
         """Performs collision in moment space at each node."""

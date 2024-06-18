@@ -30,14 +30,15 @@ def test_macroscopic():
 
     lbm.update_macroscopic()
 
-    plotting.ShowHeatmap(lbm.densities, 'densities')
-    plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')
+    plotting.show_heatmap(lbm.densities, 'densities')
+    plotting.show_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity')
 
 def test_streaming():
     """
     Test of the Streaming method of the lbm class.
-    Method is called for single-node blobs of fluid moving in all of the 9 principal directions of D29Q lattice.
-    Streaming is then called twice and the movement (with periodic boundary conditions) is plotted.
+    Method is called for single-node blobs of fluid moving in all of the 9 principal
+    directions of D29Q lattice. Streaming is then called twice and the movement
+    (with periodic boundary conditions) is plotted.
     """
 
     config = SimulationConfig(3, 3, 0.5)
@@ -49,12 +50,12 @@ def test_streaming():
 
         lbm.weights[1, 1, test_id] = 1.0
 
-        plotting.ShowHeatmap(lbm.weights[:,:,test_id], str(test_id))
+        plotting.show_heatmap(lbm.weights[:,:,test_id], str(test_id))
         lbm.streaming()
-        plotting.ShowHeatmap(lbm.new_weights[:,:,test_id], str(test_id))
+        plotting.show_heatmap(lbm.new_weights[:,:,test_id], str(test_id))
         lbm.weights = lbm.new_weights
         lbm.streaming()
-        plotting.ShowHeatmap(lbm.new_weights[:,:,test_id], str(test_id))
+        plotting.show_heatmap(lbm.new_weights[:,:,test_id], str(test_id))
 
 def test_equilibrium():
     """
@@ -99,12 +100,12 @@ def test_boundary():
 
     v = 0.1
 
-    def parabolic_profile(i: int) -> float:
-        a = - 4.0 * v / (size*size)
-        return a * (i-size/2.0)**2 + v
+    #def parabolic_profile(i: int) -> float:
+    #    a = - 4.0 * v / (size*size)
+    #    return a * (i-size/2.0)**2 + v
 
     for i in range(0, size):
-        vel = parabolic_profile(i)
+        #vel = parabolic_profile(i)
 
         lbm.boundary_velocities[1][i] = v
         #lbm.boundary_velocities[3][i] = v
@@ -113,8 +114,8 @@ def test_boundary():
 
     for i in range(0, 20):
         lbm.simulate(1)
-        plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')
-        #plotting.ShowHeatmap(lbm.velocities_x, 'velocity x')
+        plotting.show_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity')
+        #plotting.show_heatmap(lbm.velocities_x, 'velocity x')
 
 
 def test_simulation():
@@ -160,10 +161,10 @@ def test_simulation():
 
     for i in range(0, 15):
         lbm.simulate(10)
-        #plotting.ShowHeatmap(lbm.densities, 'density', 0.0, 2.0)
-        plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')
-        #plotting.SaveHeatmap(lbm.densities, 'densities', str(i), 0.0, 2.0)
-        #plotting.SaveVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity', str(i))
+        #plotting.show_heatmap(lbm.densities, 'density', 0.0, 2.0)
+        plotting.show_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity')
+        #plotting.save_heatmap(lbm.densities, 'densities', str(i), 0.0, 2.0)
+        #plotting.save_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity', str(i))
 
 
 def test_simulation_poiseuille():
@@ -207,7 +208,7 @@ def test_simulation_poiseuille():
     functions = [numeric, theoretical]
     names = ['numeric', 'theoretical']
 
-    plotting.ShowFunctions1d(functions, names, 'velocity profile')
+    plotting.show_functions_1d(functions, names, 'velocity profile')
 
 def simulate_cylinder():
     """
@@ -238,8 +239,8 @@ def simulate_cylinder():
     lbm.weights *= 1.0
 
     for i in range(0, size_x):
-        a = - 4.0 * v / (size_x*size_x)
-        vel = a * (i-size_x/2.0)**2 + v
+        #a = - 4.0 * v / (size_x*size_x)
+        #vel = a * (i-size_x/2.0)**2 + v
 
         lbm.boundary_velocities[1][i] = v#el
         lbm.boundary_velocities[3][i] = -v#el
@@ -258,8 +259,8 @@ def simulate_cylinder():
     for i in range(0,50):
         lbm.simulate(25)
 
-        plotting.ShowFlowLines(lbm.velocities_x, lbm.velocities_y)
+        plotting.show_flowlines(lbm.velocities_x, lbm.velocities_y)
         #u2 = np.square(lbm.velocities_x) + np.square(lbm.velocities_y)
-        #plotting.ShowHeatmap(u2, 'velocity magnitude', 0.0, 0.1)
-        #plotting.ShowHeatmap(lbm.densities, 'density')
-        #plotting.ShowVectorField(lbm.velocities_x, lbm.velocities_y, 'velocity')
+        #plotting.show_heatmap(u2, 'velocity magnitude', 0.0, 0.1)
+        #plotting.show_heatmap(lbm.densities, 'density')
+        #plotting.show_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity')

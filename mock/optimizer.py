@@ -201,8 +201,11 @@ def train_linear(config: LearningConfig):
     test_target = evolve_to_convergence(test_case, DT, CLASSIC_EPSILON).numpy()
     test_result = model(test_case).detach().numpy()
 
-    plotting.ShowFunctions1d([test_case, test_target, test_result], [
-                             "initial data", "ground truth", "result"], "final result")
+    plotting.show_functions_1d(
+        [test_case, test_target, test_result],
+        ["initial data", "ground truth", "result"],
+        "final result"
+    )
 
     print(model.lin.weight)
     print(model.lin.bias)
@@ -239,7 +242,10 @@ def train_custom(config: LearningConfig):
 
     test_result = model(test_case.unsqueeze(0)).detach()[0].numpy()
 
-    plotting.ShowFunctions1d([test_case.detach(), test_target, test_result], [
-                             "initial data", "ground truth", "result"], "final result")
+    plotting.show_functions_1d(
+        [test_case.detach(), test_target, test_result],
+        ["initial data", "ground truth", "result"],
+        "final result"
+    )
 
     print(model.conv.weight)

@@ -5,7 +5,7 @@ import torch
 #from src import plotting
 
 def get_diffusion_operator(grid_size: int, dt: float):
-    """ 
+    """
     Returns a matrix of shape (grid_size, grid_size) that
     implements time evolution of the diffusion equation with
     fixed values at the boundaries.
@@ -29,7 +29,7 @@ def get_diffusion_operator(grid_size: int, dt: float):
     return torch.eye(grid_size) + dt*A
 
 class Solver:
-    """ 
+    """
     Finite difference solver for the 1+1 dimensional
     diffusion equation, with fixed value boundary conditions.
     """
@@ -53,7 +53,7 @@ class Solver:
 
 
 def evolve_num_steps(initial_data: torch.tensor, dt: float, num_steps: int):
-    """ 
+    """
     Evolves the initial data for a given number of steps,
     using the finite difference diffusion equation solver.
     """
@@ -67,8 +67,8 @@ def evolve_num_steps(initial_data: torch.tensor, dt: float, num_steps: int):
 
 
 def evolve_to_convergence(initial_data: torch.tensor, dt: float, epsilon: float):
-    """ 
-    Evolves the initial data using the finite difference 
+    """
+    Evolves the initial data using the finite difference
     diffusion equation solver until difference between two consecutive
     iterations has supremum norm smaller than epsilon.
     """
@@ -86,7 +86,7 @@ def evolve_to_convergence(initial_data: torch.tensor, dt: float, epsilon: float)
         old_solution = solver.solution
         solver.evolve(1)
         sup_norm = torch.amax(torch.abs(solver.solution - old_solution))
-        #plotting.ShowFunction1d(solver.solution)
+        #plotting.show_function_1d(solver.solution)
 
         num_iter += 1
 

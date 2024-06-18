@@ -8,7 +8,7 @@ import numpy as np
 from src.simconfig import BC
 from src.simconfig import SimulationConfig
 
-class Lbm:
+class Lbm(ABC):
     """Abstract base for classes implementing the Lattice Boltzman D2Q9 scheme for simulating flows using pytorch."""
 
     def __init__(self, config: SimulationConfig):
@@ -90,8 +90,12 @@ class Lbm:
         #diag = 0.5 * np.sqrt(2.0)
         diag = 1.0
 
-        self.base_velocities_x = torch.tensor([0.0, 1.0, 0.0, -1.0, 0.0, diag, -diag, -diag, diag])
-        self.base_velocities_y = torch.tensor([0.0, 0.0, 1.0, 0.0, -1.0, diag, diag, -diag, -diag])
+        self.base_velocities_x = torch.tensor(
+            [0.0, 1.0, 0.0, -1.0, 0.0, diag, -diag, -diag, diag]
+        )
+        self.base_velocities_y = torch.tensor(
+            [0.0, 0.0, 1.0, 0.0, -1.0, diag, diag, -diag, -diag]
+        )
 
         #Solid mask
         self.solid_mask = torch.zeros(self.shape2d, dtype=torch.bool)
@@ -152,22 +156,29 @@ class Lbm:
         bounced_weights = torch.zeros(self.shape, dtype=torch.float)
         bounced_weights[:,:,self.default_ids] = self.weights[:,:,self.swapped_ids]
 
-        self.new_weights = (~self.solid_mask) * stream_weights + self.solid_mask * bounced_weights
+        self.new_weights = (~self.solid_mask) * stream_weights \
+                         + self.solid_mask * bounced_weights
 
     @abstractmethod
     def calculate_equilibrium(self) -> None:
-        pass
+        """
+        Abstract method for implementing equilibrium computation,
+        meant to be overwritten in subclasses.
+        """
 
     @abstractmethod
     def collision(self) -> None:
-        pass
+        """
+        Abstract method for implementing collisions,
+        meant to be overwritten in subclasses.
+        """
 
     def handle_boundary(self, edge_id: int):
         """
         Enforces Zou He flux boundary condition with perscribed
         von Neumann velocity at edge given by edge_id
         """
-        horizontal = (edge_id % 2 == 0)
+        horizontal = edge_id % 2 == 0
 
         lx = self.grid_size_x - 1
         ly = self.grid_size_y - 1
@@ -251,7 +262,8 @@ class LbmBGK(Lbm):
     def collision(self):
         """Performs collision using BGK operator at each node."""
         #f - > f + 1/tau * (f_eq - f) = (1 - 1/tau) * f + f_eq/tau
-        self.weights = self.one_minus_tau_inverse * self.new_weights + self.tau_inverse * self.eq_weights
+        self.weights = self.one_minus_tau_inverse * self.new_weights \
+                     + self.tau_inverse * self.eq_weights
 
 
 class LbmMomentH(Lbm):
@@ -272,7 +284,7 @@ class LbmMomentH(Lbm):
 
         self.weights_to_moments = torch.stack(
             [rho, jx, jy, pxx, pyy, pxy, gmx, gmy, gm]
-        );
+        )
 
         self.moments_to_weights = torch.inverse(self.weights_to_moments)
 
@@ -304,7 +316,8 @@ class LbmMomentH(Lbm):
         """Performs collision in moment space at each node."""
         moments = torch.einsum("ab,ijb->ija", self.weights_to_moments, self.new_weights)
 
-        new_moments = self.one_minus_tau_inverse * moments + self.tau_inverse * self.eq_weights
+        new_moments = self.one_minus_tau_inverse * moments \
+                    + self.tau_inverse * self.eq_weights
 
         self.weights = torch.einsum("ab,ijb->ija", self.moments_to_weights, new_moments)
 
@@ -326,7 +339,7 @@ class LbmMomentGS(Lbm):
 
         self.weights_to_moments = torch.stack(
             [rho, jx, jy, e, eps, qx, qy, pxx, pxy]
-        );
+        )
 
         self.moments_to_weights = torch.inverse(self.weights_to_moments)
 
@@ -354,6 +367,7 @@ class LbmMomentGS(Lbm):
         """Performs collision in moment space at each node."""
         moments = torch.einsum("ab,ijb->ija", self.weights_to_moments, self.new_weights)
 
-        new_moments = self.one_minus_tau_inverse * moments + self.tau_inverse * self.eq_weights
+        new_moments = self.one_minus_tau_inverse * moments \
+                    + self.tau_inverse * self.eq_weights
 
         self.weights = torch.einsum("ab,ijb->ija", self.moments_to_weights, new_moments)
