@@ -9,12 +9,20 @@ from torch import nn
 from src.simconfig import SimulationConfig
 from src.learning_config import LearningConfig
 
-from src.lbm_layer import LBMLayer
-from src.torch_ref import LbmMomentH as RefLbm
+#from src.torch_ref import LbmMomentH as RefLbm
+#from src.lbm_layer import LBMHermiteMinimalLayer as LbmLayer
+
+from src.torch_ref import LbmMomentGS as RefLbm
+from src.lbm_layer import LBMGramSchmidtLayer as LbmLayer
 
 from src import plotting
 
 def train_generic(model, initial_data, target, config: LearningConfig):
+    """
+    Small utility that takes given model, initial data and target
+    and performs training using the supplied parameters.
+    """
+
     criterion = nn.MSELoss(reduction='sum')
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
@@ -56,9 +64,9 @@ def get_target(initial_data, config:SimulationConfig, num_steps: int = 1):
 
     return ref_solver.weights
 
-def train(lconf: LearningConfig):
-    grid_size = 15
-    sim_steps = 3
+def train_gaussian(lconf: LearningConfig):
+    grid_size: int = 15
+    sim_steps: int = 3
 
     config = SimulationConfig(grid_size, grid_size, 0.5)
 
@@ -68,33 +76,57 @@ def train(lconf: LearningConfig):
     plotting.ShowHeatmap(initial_data[:,:,0], "Initial data")
     plotting.ShowHeatmap(target[:,:,0], "Target")
 
-    model = LBMLayer(config, sim_steps)
+    model = LbmLayer(config, sim_steps)
 
     train_generic(model, initial_data, target, lconf)
 
-    print(model.weight.data)
+    expected = model.get_expected_weights()
 
-def test_coherence():
-    """Performs one step of simulation using reference solver and trainable model with parameters fixed at their target values"""
-    config = SimulationConfig(3, 3, 0.5)
+    print(f"Expected: {expected}")
+    print(f"Obtained: {model.weight.data}")
 
-    ref_solver = RefLbm(config)
-    ref_solver.init_stationary()
-    ref_solver.weights[1,1] *= 2.0
+def train_poiseuille(lconf: LearningConfig):
+    sim_steps: int = 20
 
-    initial_data = ref_solver.weights.clone()
+    size_x: int = 3
+    size_y: int = 10
+    g: float = 0.0001
+    tau: float = 1.0
 
-    print(initial_data)
+    config = SimulationConfig(size_x, size_y, tau, (0.0, g))
 
-    ref_solver.simulate(1)
-    target = ref_solver.weights.clone()
+    ref = RefLbm(config)
+    ref.init_stationary()
+    ref.solid_mask[:,0] = True
+    ref.solid_mask[:,size_y-1] = True
 
-    print(target)
+    initial_data = ref.weights.clone()
 
-    model = LBMLayer(config)
-    model.weight.data = torch.ones(6)
-    test_data = model(initial_data)
+    ref.simulate(sim_steps)
 
-    print(test_data)
+    target = ref.weights.clone()
 
-    print(test_data - target)
+    target_v = ref.velocities_y[0,:]
+
+    model = LbmLayer(config, sim_steps)
+    model.lbm.solid_mask[:,0] = True
+    model.lbm.solid_mask[:,size_y-1] = True
+
+    train_generic(model, initial_data, target, lconf)
+
+    result = model(initial_data)
+
+    tmp = RefLbm(config)
+    tmp.new_weights = result.detach()
+    tmp.update_macroscopic()
+
+    result_v = tmp.velocities_y[0,:]
+
+    functions = [target_v, result_v]
+    names = ['target', 'result']
+    plotting.ShowFunctions1d(functions, names, 'velocity profile')
+
+    expected = model.get_expected_weights()
+
+    print(f"Expected: {expected}")
+    print(f"Obtained: {model.weight.data}")

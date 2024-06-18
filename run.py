@@ -6,8 +6,8 @@ from src.learning_config import LearningConfig
 from mock.optimizer import train_linear
 from mock.optimizer import train_custom
 
-from src.lbm_training import train
-from src.lbm_training import test_coherence
+from src.lbm_training import train_gaussian
+from src.lbm_training import train_poiseuille
 
 def main():
     #config = LearningConfig(2000, 1e-3, 1e-3)
@@ -41,8 +41,10 @@ def main():
 
     #test_coherence()
 
-    config = LearningConfig(10000, 1e-3, 1e-3)
-    train(config)
+    #config = LearningConfig(10000, 1e-3, 1e-3)
+    #train_gaussian(config)
+    config = LearningConfig(2500, 1e-3, 1e-3)
+    train_poiseuille(config)
 
 
 if __name__ == "__main__":
