@@ -2,6 +2,7 @@ import src.reference_test as ref_test
 import src.torch_ref_test as torch_test
 
 from src.learning_config import LearningConfig
+from src.lbm_layer import LbmLayer
 from src.lbm_training import train_gaussian
 from src.lbm_training import train_poiseuille
 
@@ -38,11 +39,13 @@ def main():
 
     # =====================================
 
-    #config = LearningConfig(10000, 1e-3, 1e-3)
-    #train_gaussian(config)
+    layer = LbmLayer.GRAM_SCHMIDT
 
-    config = LearningConfig(2500, 1e-3, 1e-3)
-    train_poiseuille(config)
+    config = LearningConfig(10000, 1e-3, 1e-3)
+    train_gaussian(layer, config)
+
+    #config = LearningConfig(2500, 1e-3, 1e-3)
+    #train_poiseuille(layer, config)
 
 
 if __name__ == "__main__":

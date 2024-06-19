@@ -9,11 +9,9 @@ from torch import nn
 from src.simconfig import SimulationConfig
 from src.learning_config import LearningConfig
 
-#from src.torch_ref import LbmMomentH as RefLbm
-#from src.lbm_layer import LBMHermiteMinimalLayer as LbmLayer
-
-from src.torch_ref import LbmMomentGS as RefLbm
-from src.lbm_layer import LBMGramSchmidtLayer as LbmLayer
+from src.lbm_layer import LbmLayer
+from src.lbm_layer import get_lbm_layer
+from src.lbm_layer import get_ref_lbm
 
 from src import plotting
 
@@ -38,12 +36,12 @@ def train_generic(model, initial_data, target, config: LearningConfig):
         loss.backward()
         optimizer.step()
 
-def get_initial_data_gaussian(config: SimulationConfig):
+def get_initial_data_gaussian(layer: LbmLayer, config: SimulationConfig):
     """
     Returns initial weights for lbm, density of which is a gaussian function.
     """
 
-    ref_solver = RefLbm(config)
+    ref_solver = get_ref_lbm(layer, config)
     ref_solver.init_stationary()
 
     def gaussian(i: int, j: int) -> float:
@@ -60,20 +58,20 @@ def get_initial_data_gaussian(config: SimulationConfig):
 
     return ref_solver.weights
 
-def get_target(initial_data, config:SimulationConfig, num_steps: int = 1):
+def get_target(layer: LbmLayer, initial_data, config:SimulationConfig, num_steps: int = 1):
     """
     Returns initial data after evolving it a given number
     of steps with the reference solver.
     """
 
-    ref_solver = RefLbm(config)
+    ref_solver = get_ref_lbm(layer, config)
     ref_solver.weights = initial_data.clone()
 
     ref_solver.simulate(num_steps)
 
     return ref_solver.weights
 
-def train_gaussian(lconf: LearningConfig):
+def train_gaussian(layer: LbmLayer, lconf: LearningConfig):
     """
     Trains an LBM layer using a setup that evolves
     a gaussian packet of higher density fluid.
@@ -84,13 +82,13 @@ def train_gaussian(lconf: LearningConfig):
 
     config = SimulationConfig(grid_size, grid_size, 0.5)
 
-    initial_data = get_initial_data_gaussian(config)
-    target = get_target(initial_data, config, sim_steps)
+    initial_data = get_initial_data_gaussian(layer, config)
+    target = get_target(layer, initial_data, config, sim_steps)
 
     plotting.show_heatmap(initial_data[:,:,0], "Initial data")
     plotting.show_heatmap(target[:,:,0], "Target")
 
-    model = LbmLayer(config, sim_steps)
+    model = get_lbm_layer(layer, config, sim_steps)
 
     train_generic(model, initial_data, target, lconf)
 
@@ -99,7 +97,7 @@ def train_gaussian(lconf: LearningConfig):
     print(f"Expected: {expected}")
     print(f"Obtained: {model.weight.data}")
 
-def train_poiseuille(lconf: LearningConfig):
+def train_poiseuille(layer: LbmLayer, lconf: LearningConfig):
     """
     Trains an LBM layer using a minimal setup that results
     with a flow of parabolic (Poiseuille) profile.
@@ -114,7 +112,7 @@ def train_poiseuille(lconf: LearningConfig):
 
     config = SimulationConfig(size_x, size_y, tau, (0.0, g))
 
-    ref = RefLbm(config)
+    ref = get_ref_lbm(layer, config)
     ref.init_stationary()
     ref.solid_mask[:,0] = True
     ref.solid_mask[:,size_y-1] = True
@@ -127,7 +125,7 @@ def train_poiseuille(lconf: LearningConfig):
 
     target_v = ref.velocities_y[0,:]
 
-    model = LbmLayer(config, sim_steps)
+    model = get_lbm_layer(layer, config, sim_steps)
     model.lbm.solid_mask[:,0] = True
     model.lbm.solid_mask[:,size_y-1] = True
 
@@ -135,7 +133,7 @@ def train_poiseuille(lconf: LearningConfig):
 
     result = model(initial_data)
 
-    tmp = RefLbm(config)
+    tmp = get_ref_lbm(layer, config)
     tmp.new_weights = result.detach()
     tmp.update_macroscopic()
 

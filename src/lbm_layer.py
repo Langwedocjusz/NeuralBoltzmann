@@ -1,5 +1,7 @@
 """This module implements NN layers that perform lbm-scheme computations."""
 
+from enum import Enum
+
 import torch
 from torch import nn
 
@@ -8,6 +10,13 @@ from src.simconfig import SimulationConfig
 from src.lbm_spec import NoEqLbmHermite
 from src.lbm_spec import NoEqLbmGramSchmidt
 
+from src.torch_ref import LbmMomentH
+from src.torch_ref import LbmMomentGS
+
+class LbmLayer(Enum):
+    """Enum representing supported types of lbm layers."""
+    MINIMAL_HERMITE = 0
+    GRAM_SCHMIDT = 1
 
 class LBMHermiteMinimalLayer(nn.Module):
     """
@@ -133,3 +142,19 @@ class LBMGramSchmidtLayer(nn.Module):
             self.lbm.collision()
 
         return self.lbm.weights
+
+def get_lbm_layer(e : LbmLayer, config: SimulationConfig, iterations: int):
+    if e == LbmLayer.MINIMAL_HERMITE:
+        return LBMHermiteMinimalLayer(config, iterations)
+    elif e == LbmLayer.GRAM_SCHMIDT:
+        return LBMGramSchmidtLayer(config, iterations)
+    else:
+        raise RuntimeError("Invalid LbmLayer type provided.")
+
+def get_ref_lbm(e : LbmLayer, config: SimulationConfig):
+    if e == LbmLayer.MINIMAL_HERMITE:
+        return LbmMomentH(config)
+    elif e == LbmLayer.GRAM_SCHMIDT:
+        return LbmMomentGS(config)
+    else:
+        raise RuntimeError("Invalid LbmLayer type provided.")
