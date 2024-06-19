@@ -8,6 +8,18 @@ import torch
 from src.simconfig import SimulationConfig
 from src.torch_ref import Lbm
 
+class LbmEmpty(Lbm):
+    """
+    Specialization of the Lbm class, that doesn't implement anything.
+    Meant to be used in a neural network layer.
+    """
+
+    def calculate_equilibrium(self):
+        """Does nothing by design."""
+
+    def collision(self):
+        """Does nothing by design."""
+
 class NoEqLbmHermite(Lbm):
     """
     Specialization of the Lbm class, that implements transformation into

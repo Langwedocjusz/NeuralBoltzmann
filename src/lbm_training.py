@@ -15,6 +15,9 @@ from src.lbm_layer import get_ref_lbm
 
 from src import plotting
 
+from src.lbm_print import print_model
+from src.lbm_print import model_to_html
+
 def train_generic(model, initial_data, target, config: LearningConfig):
     """
     Small utility that takes given model, initial data and target
@@ -71,7 +74,7 @@ def get_target(layer: LbmLayer, initial_data, config:SimulationConfig, num_steps
 
     return ref_solver.weights
 
-def train_gaussian(layer: LbmLayer, lconf: LearningConfig):
+def train_gaussian(layer: LbmLayer, lconf: LearningConfig, html: bool = False):
     """
     Trains an LBM layer using a setup that evolves
     a gaussian packet of higher density fluid.
@@ -94,10 +97,13 @@ def train_gaussian(layer: LbmLayer, lconf: LearningConfig):
 
     expected = model.get_expected_weights()
 
-    print(f"Expected: {expected}")
-    print(f"Obtained: {model.weight.data}")
+    if html:
+        model_to_html(model, "test.html")
+    else:
+        print_model(model)
 
-def train_poiseuille(layer: LbmLayer, lconf: LearningConfig):
+
+def train_poiseuille(layer: LbmLayer, lconf: LearningConfig, html: bool = False):
     """
     Trains an LBM layer using a minimal setup that results
     with a flow of parabolic (Poiseuille) profile.
@@ -145,5 +151,7 @@ def train_poiseuille(layer: LbmLayer, lconf: LearningConfig):
 
     expected = model.get_expected_weights()
 
-    print(f"Expected: {expected}")
-    print(f"Obtained: {model.weight.data}")
+    if html:
+        model_to_html(model, "test.html")
+    else:
+        print_model(model)
