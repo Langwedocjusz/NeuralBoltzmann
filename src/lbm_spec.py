@@ -6,7 +6,7 @@ meant to be used inside neural network layers
 import torch
 
 from src.simconfig import SimulationConfig
-from src.torch_ref import Lbm
+from src.reference import Lbm
 
 class LbmEmpty(Lbm):
     """

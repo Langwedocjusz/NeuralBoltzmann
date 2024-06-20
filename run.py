@@ -1,7 +1,6 @@
 import torch
 
-import src.reference_test as ref_test
-import src.torch_ref_test as torch_test
+from src import reference_test as ref_test
 
 from src.simconfig import SimulationConfig
 from src.learning_config import LearningConfig
@@ -21,26 +20,16 @@ def test_ref():
     ref_test.test_simulation_poiseuille()
     ref_test.simulate_cylinder()
 
-def test_torch_ref():
-    torch_test.test_macroscopic()
-    torch_test.test_streaming()
-    torch_test.test_equilibrium()
-    torch_test.test_boundary()
-
-    torch_test.test_simulation()
-    torch_test.test_simulation_poiseuille()
-    torch_test.simulate_cylinder()
-
 def main():
     layer = LbmLayer.MINIMAL_HERMITE
 
     config = LearningConfig(2500, 1e-3, 1e-3)
-    #train_gaussian(layer, config, True)
+    train_gaussian(layer, config, True)
 
     #config = LearningConfig(2500, 1e-3, 1e-3)
     #train_poiseuille(layer, config, True)
 
-    train_gaussian_batch(layer, config, True)
+    #train_gaussian_batch(layer, config, True)
 
 if __name__ == "__main__":
     main()

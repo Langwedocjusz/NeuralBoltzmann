@@ -1,6 +1,7 @@
-"""This module implements a number of tests for the reference numpy solver."""
+"""This module implements a number of tests for the reference solver."""
 
-import numpy as np
+import math
+import torch
 
 from src.reference import SimulationConfig
 from src.reference import BC
@@ -36,17 +37,17 @@ def test_macroscopic():
 def test_streaming():
     """
     Test of the Streaming method of the lbm class.
-    Method is called for single-node blobs of fluid moving in all of the 9 principal
-    directions of D29Q lattice. Streaming is then called twice and the movement
-    (with periodic boundary conditions) is plotted.
+    Method is called for single-node blobs of fluid moving in all of the 9
+    principal directions of D29Q lattice. Streaming is then called twice
+    and the movement (with periodic boundary conditions) is plotted.
     """
 
     config = SimulationConfig(3, 3, 0.5)
     lbm = Lbm(config)
 
     for test_id in range(0,9):
-        lbm.weights     = np.zeros(lbm.shape, dtype=float)
-        lbm.new_weights = np.zeros(lbm.shape, dtype=float)
+        lbm.weights     = torch.zeros(lbm.shape, dtype=torch.float)
+        lbm.new_weights = torch.zeros(lbm.shape, dtype=torch.float)
 
         lbm.weights[1, 1, test_id] = 1.0
 
@@ -68,15 +69,14 @@ def test_equilibrium():
     lbm = Lbm(config)
 
     lbm.densities[:,:] = 0.1
-    lbm.new_weights = np.full(lbm.shape, 0.01)
+    lbm.new_weights = torch.full(lbm.shape, 0.01)
 
     lbm.densities[0,0] = 1.0
     lbm.densities[1,0] = 1.0
-    lbm.new_weights[0,0] = [0.0, 0.25, 0.25, 0.25, 0.25, 0.0, 0.0, 0.0, 0.0]
-    lbm.new_weights[1,0] = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    lbm.new_weights[0,0] = torch.tensor([0.0, 0.25, 0.25, 0.25, 0.25, 0.0, 0.0, 0.0, 0.0])
+    lbm.new_weights[1,0] = torch.tensor([0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
     lbm.update_macroscopic()
-
     lbm.calculate_equilibrium()
 
     print(lbm.eq_weights)
@@ -117,7 +117,6 @@ def test_boundary():
         plotting.show_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity')
         #plotting.show_heatmap(lbm.velocities_x, 'velocity x')
 
-
 def test_simulation():
     """
     Test of fluid simulation using the lbm class.
@@ -145,7 +144,7 @@ def test_simulation():
             x = (i-size/2.0)/10.0
             y = (j-size/2.0)/10.0
 
-            rho = 1.0 + np.exp(-(x*x + y*y))
+            rho = 1.0 + math.exp(-(x*x + y*y))
 
             lbm.densities[i,j] = rho
             lbm.weights[i,j] *= rho
@@ -165,7 +164,6 @@ def test_simulation():
         plotting.show_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity')
         #plotting.save_heatmap(lbm.densities, 'densities', str(i), 0.0, 2.0)
         #plotting.save_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity', str(i))
-
 
 def test_simulation_poiseuille():
     """
@@ -191,17 +189,16 @@ def test_simulation_poiseuille():
 
     numeric = lbm.velocities_y[0,:]
 
-
     def theoretical_velocity(i: float) -> float:
         #v = g/(2 nu) (a^2 - x^2)
-        nu = 0.33*(lbm.tau - 0.5)
+        nu = (lbm.tau - 0.5)/3.0
         #-1 since boundaries of the pipe are actually between the nodes:
         a = (size_y-1.0)/2.0
         x = i - a
         return g * (a*a - x*x)/(2.0*nu)
 
 
-    theoretical = np.array([
+    theoretical = torch.tensor([
         theoretical_velocity(i) for i in range(0, size_y)
     ])
 
@@ -230,9 +227,7 @@ def simulate_cylinder():
     tau = 3.0*nu+0.5
 
     config = SimulationConfig(size_x, size_y, tau)
-    config.boundary_conditions = (
-        BC.PERIODIC, BC.VON_NEUMANN, BC.PERIODIC, BC.VON_NEUMANN
-    )
+    config.boundary_conditions = (BC.PERIODIC, BC.VON_NEUMANN, BC.PERIODIC, BC.VON_NEUMANN)
 
     lbm = Lbm(config)
     lbm.init_stationary()
@@ -260,7 +255,7 @@ def simulate_cylinder():
         lbm.simulate(25)
 
         plotting.show_flowlines(lbm.velocities_x, lbm.velocities_y)
-        #u2 = np.square(lbm.velocities_x) + np.square(lbm.velocities_y)
+        #u2 = torch.square(lbm.velocities_x) + torch.square(lbm.velocities_y)
         #plotting.show_heatmap(u2, 'velocity magnitude', 0.0, 0.1)
         #plotting.show_heatmap(lbm.densities, 'density')
         #plotting.show_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity')

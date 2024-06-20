@@ -12,9 +12,9 @@ from src.lbm_spec import NoEqLbmHermite
 from src.lbm_spec import NoEqLbmGramSchmidt
 from src.lbm_spec import LbmEmpty
 
-from src.torch_ref import LbmMomentH
-from src.torch_ref import LbmMomentGS
-from src.torch_ref import LbmBGK
+from src.reference import LbmMomentH
+from src.reference import LbmMomentGS
+from src.reference import LbmBGK
 
 class LbmLayer(Enum):
     """Enum representing supported types of lbm layers."""
