@@ -4,7 +4,6 @@ import math
 
 import torch
 from torch import nn
-#from torch.utils.data import TensorDataset, DataLoader
 
 from src.simconfig import SimulationConfig
 from src.learning_config import LearningConfig
@@ -12,6 +11,10 @@ from src.learning_config import LearningConfig
 from src.lbm_layer import LbmLayer
 from src.lbm_layer import get_lbm_layer
 from src.lbm_layer import get_ref_lbm
+
+from src.lbm_data import get_target
+from src.lbm_data import get_gaussian_data
+from src.lbm_data import get_gaussian_batch
 
 from src import plotting
 
@@ -39,54 +42,21 @@ def train_generic(model, initial_data, target, config: LearningConfig):
         loss.backward()
         optimizer.step()
 
-def get_initial_data_gaussian(layer: LbmLayer, config: SimulationConfig):
-    """
-    Returns initial weights for lbm, density of which is a gaussian function.
-    """
-
-    ref_solver = get_ref_lbm(layer, config)
-    ref_solver.init_stationary()
-
-    def gaussian(i: int, j: int) -> float:
-        width = 2.0
-
-        x = (i-config.grid_size_x/2.0)/width
-        y = (j-config.grid_size_y/2.0)/width
-
-        return 1.0 + math.exp(-(x*x + y*y))
-
-    for i in range(config.grid_size_x):
-        for j in range(config.grid_size_y):
-            ref_solver.weights[i,j] *= gaussian(i,j)
-
-    return ref_solver.weights
-
-def get_target(layer: LbmLayer, initial_data, config:SimulationConfig, num_steps: int = 1):
-    """
-    Returns initial data after evolving it a given number
-    of steps with the reference solver.
-    """
-
-    ref_solver = get_ref_lbm(layer, config)
-    ref_solver.weights = initial_data.clone()
-
-    ref_solver.simulate(num_steps)
-
-    return ref_solver.weights
-
 def train_gaussian(layer: LbmLayer, lconf: LearningConfig, html: bool = False):
     """
     Trains an LBM layer using a setup that evolves
     a gaussian packet of higher density fluid.
     """
 
-    grid_size: int = 15
     sim_steps: int = 3
 
-    config = SimulationConfig(grid_size, grid_size, 0.5)
+    config = SimulationConfig(
+        grid_size_x = 15,
+        grid_size_y = 15,
+        tau = 0.7
+    )
 
-    initial_data = get_initial_data_gaussian(layer, config)
-    target = get_target(layer, initial_data, config, sim_steps)
+    initial_data, target = get_gaussian_data(layer, config, sim_steps)
 
     plotting.show_heatmap(initial_data[:,:,0], "Initial data")
     plotting.show_heatmap(target[:,:,0], "Target")
@@ -95,10 +65,8 @@ def train_gaussian(layer: LbmLayer, lconf: LearningConfig, html: bool = False):
 
     train_generic(model, initial_data, target, lconf)
 
-    expected = model.get_expected_weights()
-
     if html:
-        model_to_html(model, "test.html")
+        model_to_html(model, "results.html")
     else:
         print_model(model)
 
@@ -111,17 +79,17 @@ def train_poiseuille(layer: LbmLayer, lconf: LearningConfig, html: bool = False)
 
     sim_steps: int = 20
 
-    size_x: int = 3
-    size_y: int = 10
-    g: float = 0.0001
-    tau: float = 1.0
-
-    config = SimulationConfig(size_x, size_y, tau, (0.0, g))
+    config = SimulationConfig(
+        grid_size_x = 3,
+        grid_size_y = 10,
+        tau = 0.7,
+        gravity = (0.0, 0.0001)
+    )
 
     ref = get_ref_lbm(layer, config)
     ref.init_stationary()
     ref.solid_mask[:,0] = True
-    ref.solid_mask[:,size_y-1] = True
+    ref.solid_mask[:,config.grid_size_y-1] = True
 
     initial_data = ref.weights.clone()
 
@@ -133,7 +101,7 @@ def train_poiseuille(layer: LbmLayer, lconf: LearningConfig, html: bool = False)
 
     model = get_lbm_layer(layer, config, sim_steps)
     model.lbm.solid_mask[:,0] = True
-    model.lbm.solid_mask[:,size_y-1] = True
+    model.lbm.solid_mask[:,config.grid_size_y-1] = True
 
     train_generic(model, initial_data, target, lconf)
 
@@ -149,9 +117,33 @@ def train_poiseuille(layer: LbmLayer, lconf: LearningConfig, html: bool = False)
     names = ['target', 'result']
     plotting.show_functions_1d(functions, names, 'velocity profile')
 
-    expected = model.get_expected_weights()
+    if html:
+        model_to_html(model, "results.html")
+    else:
+        print_model(model)
+
+
+def train_gaussian_batch(layer: LbmLayer, lconf: LearningConfig, html: bool = False):
+
+    sim_steps: int = 3
+
+    config = SimulationConfig(
+        grid_size_x = 15,
+        grid_size_y = 15,
+        tau = 0.7
+    )
+
+    model = get_lbm_layer(layer, config, sim_steps)
+
+    inputs, targets = get_gaussian_batch(layer, config, sim_steps)
+
+    for i in range(inputs.shape[0]):
+        plotting.show_heatmap(inputs[i,:,:,0], "Initial data")
+        plotting.show_heatmap(targets[i,:,:,0], "Target")
+
+    train_generic(model, inputs, targets, lconf)
 
     if html:
-        model_to_html(model, "test.html")
+        model_to_html(model, "results.html")
     else:
         print_model(model)

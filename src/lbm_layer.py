@@ -22,6 +22,25 @@ class LbmLayer(Enum):
     GRAM_SCHMIDT = 1
     BGK = 2
 
+def generic_forward(self, input):
+    """
+    Generic scheme for how forward method of each lbm layer
+    should be implemented to handle both batched and non-batched inputs.
+    """
+
+    res = input.clone()
+
+    batched: bool = res.dim() == 4
+
+    if batched:
+        for i in range(res.shape[0]):
+            res[i,:,:,:] = self.evolve(res[i,:,:,:])
+
+        return res
+
+    else:
+        return self.evolve(res)
+
 class LBMHermiteMinimalLayer(nn.Module):
     """
     This class implements neural network layer that performs
@@ -74,9 +93,9 @@ class LBMHermiteMinimalLayer(nn.Module):
             [rho, jx, jy, pxx, pyy, pxy, gmx, gmy, gm], dim=2
         )
 
-    def forward(self, input):
+    def evolve(self, input):
         """Performs a set number of simulation steps using lbm scheme on input."""
-        self.lbm.weights = input.clone()
+        self.lbm.weights = input
 
         for _ in range(self.iterations):
             self.lbm.handle_boundaries()
@@ -89,6 +108,9 @@ class LBMHermiteMinimalLayer(nn.Module):
             self.lbm.collision()
 
         return self.lbm.weights
+
+    def forward(self, input):
+        return generic_forward(self, input)
 
 class LBMGramSchmidtLayer(nn.Module):
     """
@@ -141,9 +163,9 @@ class LBMGramSchmidtLayer(nn.Module):
             [rho, jx, jy, e, eps, qx, qy, pxx, pxy], dim=2
         )
 
-    def forward(self, input):
+    def evolve(self, input):
         """Performs a set number of simulation steps using lbm scheme on input."""
-        self.lbm.weights = input.clone()
+        self.lbm.weights = input
 
         for _ in range(self.iterations):
             self.lbm.handle_boundaries()
@@ -156,6 +178,9 @@ class LBMGramSchmidtLayer(nn.Module):
             self.lbm.collision()
 
         return self.lbm.weights
+
+    def forward(self, input):
+        return generic_forward(self, input)
 
 class LbmBGKLayer(nn.Module):
     """
@@ -223,9 +248,9 @@ class LbmBGKLayer(nn.Module):
 
         self.lbm.weights = M0 + D + phi0 + Q.reshape(self.lbm.shape2d) * self.lbm.eq_factors
 
-    def forward(self, input):
+    def evolve(self, input):
         """Performs a set number of simulation steps using lbm scheme on input."""
-        self.lbm.weights = input.clone()
+        self.lbm.weights = input
 
         for _ in range(self.iterations):
             self.lbm.handle_boundaries()
@@ -236,6 +261,9 @@ class LbmBGKLayer(nn.Module):
             self.collision()
 
         return self.lbm.weights
+
+    def forward(self, input):
+        return generic_forward(self, input)
 
 
 def get_lbm_layer(e : LbmLayer, config: SimulationConfig, iterations: int):

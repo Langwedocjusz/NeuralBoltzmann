@@ -9,6 +9,7 @@ from src.lbm_layer import LbmLayer
 
 from src.lbm_training import train_gaussian
 from src.lbm_training import train_poiseuille
+from src.lbm_training import train_gaussian_batch
 
 def test_ref():
     ref_test.test_macroscopic()
@@ -31,13 +32,15 @@ def test_torch_ref():
     torch_test.simulate_cylinder()
 
 def main():
-    layer = LbmLayer.BGK
+    layer = LbmLayer.MINIMAL_HERMITE
 
-    config = LearningConfig(5000, 1e-3, 1e-3)
-    train_gaussian(layer, config, True)
+    config = LearningConfig(2500, 1e-3, 1e-3)
+    #train_gaussian(layer, config, True)
 
     #config = LearningConfig(2500, 1e-3, 1e-3)
-    #train_poiseuille(layer, config)
+    #train_poiseuille(layer, config, True)
+
+    train_gaussian_batch(layer, config, True)
 
 if __name__ == "__main__":
     main()
