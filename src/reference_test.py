@@ -217,11 +217,11 @@ def simulate_cylinder():
     As the flow develops, resulting flow lines are plotted.
     """
 
-    size_x = 150
-    size_y = 300
+    size_x = 100
+    size_y = 400
     rad = 12.0
-    v = 0.04
-    Re = 1.0
+    v = 0.1
+    Re = 150.0
 
     nu = v*rad/Re
     tau = 3.0*nu+0.5
@@ -234,13 +234,13 @@ def simulate_cylinder():
     lbm.weights *= 1.0
 
     for i in range(0, size_x):
-        #a = - 4.0 * v / (size_x*size_x)
-        #vel = a * (i-size_x/2.0)**2 + v
+        a = - 4.0 * v / (size_x*size_x)
+        vel = a * (i-size_x/2.0)**2 + v
 
-        lbm.boundary_velocities[1][i] = v#el
-        lbm.boundary_velocities[3][i] = -v#el
+        lbm.boundary_velocities[1][i] = vel
+        lbm.boundary_velocities[3][i] = -vel
 
-    center_x = 0.5*size_x
+    center_x = 0.5*size_x + 1.0
     center_y = (1.0/6.0)*size_y
 
     for i in range(0, size_x):
@@ -252,10 +252,11 @@ def simulate_cylinder():
                 lbm.solid_mask[i,j] = True
 
     for i in range(0,50):
-        lbm.simulate(25)
+        lbm.simulate(1000)
 
-        plotting.show_flowlines(lbm.velocities_x, lbm.velocities_y)
+        #plotting.show_flowlines(lbm.velocities_x, lbm.velocities_y)
         #u2 = torch.square(lbm.velocities_x) + torch.square(lbm.velocities_y)
-        #plotting.show_heatmap(u2, 'velocity magnitude', 0.0, 0.1)
+        #plotting.show_heatmap(u2, 'velocity magnitude', 0.0, v*v)
         #plotting.show_heatmap(lbm.densities, 'density')
+        plotting.show_heatmap(lbm.velocities_x, 'velocity x', 0.0, v)
         #plotting.show_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity')
