@@ -160,7 +160,7 @@ def test_simulation():
 
     for i in range(0, 15):
         lbm.simulate(10)
-        #plotting.show_heatmap(lbm.densities, 'density', 0.0, 2.0)
+        #plotting.show_heatmap(lbm.densities, 'density', 1.0, 2.0)
         plotting.show_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity')
         #plotting.save_heatmap(lbm.densities, 'densities', str(i), 0.0, 2.0)
         #plotting.save_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity', str(i))
@@ -185,7 +185,7 @@ def test_simulation_poiseuille():
     lbm.solid_mask[:,0]        = True
     lbm.solid_mask[:,size_y-1] = True
 
-    lbm.simulate(1000)
+    lbm.simulate(5000)
 
     numeric = lbm.velocities_y[0,:]
 
@@ -251,12 +251,13 @@ def simulate_cylinder():
             if dx*dx + dy*dy < rad**2:
                 lbm.solid_mask[i,j] = True
 
-    for i in range(0,50):
-        lbm.simulate(1000)
+    for i in range(0,40):
+        lbm.simulate(500)
 
         #plotting.show_flowlines(lbm.velocities_x, lbm.velocities_y)
         #u2 = torch.square(lbm.velocities_x) + torch.square(lbm.velocities_y)
         #plotting.show_heatmap(u2, 'velocity magnitude', 0.0, v*v)
         #plotting.show_heatmap(lbm.densities, 'density')
-        plotting.show_heatmap(lbm.velocities_x, 'velocity x', 0.0, v)
+        #plotting.show_heatmap(lbm.velocities_x, 'velocity x', 0.0, v)
+        plotting.save_heatmap(lbm.velocities_x, 'velocity x', str(i) + ".png", 0.0, v)
         #plotting.show_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity')
