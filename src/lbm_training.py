@@ -10,11 +10,12 @@ from src.learning_config import LearningConfig
 
 from src.lbm_layer import LbmLayer
 from src.lbm_layer import get_lbm_layer
-from src.lbm_layer import get_ref_lbm
 
 from src.lbm_data import get_target
 from src.lbm_data import get_gaussian_data
+from src.lbm_data import get_poiseuille_data
 from src.lbm_data import get_gaussian_batch
+from src.lbm_data import macroscopic_from_weights
 
 from src import plotting
 
@@ -58,8 +59,10 @@ def train_gaussian(layer: LbmLayer, lconf: LearningConfig, html: bool = False):
 
     initial_data, target = get_gaussian_data(layer, config, sim_steps)
 
-    plotting.show_heatmap(initial_data[:,:,0], "Initial data")
-    plotting.show_heatmap(target[:,:,0], "Target")
+    initial_macro = macroscopic_from_weights(initial_data)
+
+    plotting.show_heatmap(initial_macro[0,:,:], "Initial data", 1.0, 2.0)
+    plotting.show_heatmap(target[0,:,:], "Target", 1.0, 2.0)
 
     model = get_lbm_layer(layer, config, sim_steps)
 
@@ -77,41 +80,28 @@ def train_poiseuille(layer: LbmLayer, lconf: LearningConfig, html: bool = False)
     with a flow of parabolic (Poiseuille) profile.
     """
 
-    sim_steps: int = 20
+    sim_steps: int = 50
 
     config = SimulationConfig(
         grid_size_x = 3,
         grid_size_y = 10,
-        tau = 0.7,
+        tau = 1.0,
         gravity = (0.0, 0.0001)
     )
 
-    ref = get_ref_lbm(layer, config)
-    ref.init_stationary()
-    ref.solid_mask[:,0] = True
-    ref.solid_mask[:,config.grid_size_y-1] = True
+    initial_data, target = get_poiseuille_data(config)
 
-    initial_data = ref.weights.clone()
-
-    ref.simulate(sim_steps)
-
-    target = ref.weights.clone()
-
-    target_v = ref.velocities_y[0,:]
+    target_v = target[2,0,:]
 
     model = get_lbm_layer(layer, config, sim_steps)
+    #Initialize model's solid mask, to have boundaries:
     model.lbm.solid_mask[:,0] = True
     model.lbm.solid_mask[:,config.grid_size_y-1] = True
 
     train_generic(model, initial_data, target, lconf)
 
-    result = model(initial_data)
-
-    tmp = get_ref_lbm(layer, config)
-    tmp.new_weights = result.detach()
-    tmp.update_macroscopic()
-
-    result_v = tmp.velocities_y[0,:]
+    result = model(initial_data).detach()
+    result_v = result[2,0,:]
 
     functions = [target_v, result_v]
     names = ['target', 'result']
@@ -124,6 +114,10 @@ def train_poiseuille(layer: LbmLayer, lconf: LearningConfig, html: bool = False)
 
 
 def train_gaussian_batch(layer: LbmLayer, lconf: LearningConfig, html: bool = False):
+    """
+    Trains an LBM layer with a batch of examples,
+    each involving a gaussian packet of higher density fluid.
+    """
 
     sim_steps: int = 3
 
@@ -138,8 +132,10 @@ def train_gaussian_batch(layer: LbmLayer, lconf: LearningConfig, html: bool = Fa
     inputs, targets = get_gaussian_batch(layer, config, sim_steps)
 
     for i in range(inputs.shape[0]):
-        plotting.show_heatmap(inputs[i,:,:,0], "Initial data")
-        plotting.show_heatmap(targets[i,:,:,0], "Target")
+        macro = macroscopic_from_weights(inputs[i,:,:,:])
+
+        plotting.show_heatmap(macro[0,:,:], "Initial data", 1.0, 2.0)
+        plotting.show_heatmap(targets[i,0,:,:], "Target", 1.0, 2.0)
 
     train_generic(model, inputs, targets, lconf)
 

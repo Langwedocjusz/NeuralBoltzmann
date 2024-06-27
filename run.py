@@ -10,6 +10,8 @@ from src.lbm_training import train_gaussian
 from src.lbm_training import train_poiseuille
 from src.lbm_training import train_gaussian_batch
 
+from src import plotting
+
 def test_ref():
     ref_test.test_macroscopic()
     ref_test.test_streaming()
@@ -23,13 +25,14 @@ def test_ref():
 def main():
     layer = LbmLayer.MINIMAL_HERMITE
 
-    config = LearningConfig(2500, 1e-3, 1e-3)
+    config = LearningConfig(10000, 1e-3, 1e-3)
     train_gaussian(layer, config, True)
 
     #config = LearningConfig(2500, 1e-3, 1e-3)
     #train_poiseuille(layer, config, True)
 
     #train_gaussian_batch(layer, config, True)
+
 
 if __name__ == "__main__":
     main()

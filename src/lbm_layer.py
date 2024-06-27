@@ -22,10 +22,11 @@ class LbmLayer(Enum):
     GRAM_SCHMIDT = 1
     BGK = 2
 
-def generic_forward(self, input):
+def generic_forward_df(self, input):
     """
     Generic scheme for how forward method of each lbm layer
     should be implemented to handle both batched and non-batched inputs.
+    Both input and output are distribution functions (weights) of the lbm scheme.
     """
 
     res = input.clone()
@@ -41,13 +42,47 @@ def generic_forward(self, input):
     else:
         return self.evolve(res)
 
+def generic_forward_s(self, input):
+    """
+    Generic scheme for how forward method of each lbm layer
+    should be implemented to handle both batched and non-batched inputs.
+    Input is expected to be initial distribution function, while output is
+    a solution (density and velocity).
+    """
+
+    data = input.clone()
+
+    batched: bool = data.dim() == 4
+
+    if batched:
+        res = torch.zeros((data.shape[0], 3, data.shape[1], data.shape[2]), dtype=torch.float)
+
+        for i in range(data.shape[0]):
+            data[i,:,:,:] = self.evolve(data[i,:,:,:])
+
+            res[i,:,:,:] = torch.stack([
+                self.lbm.calc_densities(data[i,:,:,:]),
+                self.lbm.calc_jx(data[i,:,:,:]),
+                self.lbm.calc_jy(data[i,:,:,:]),
+            ])
+
+        return res
+
+    else:
+        data = self.evolve(data)
+
+        return torch.stack([
+            self.lbm.calc_densities(data),
+            self.lbm.calc_jx(data),
+            self.lbm.calc_jy(data)
+        ])
+
 class LBMHermiteMinimalLayer(nn.Module):
     """
     This class implements neural network layer that performs
     a given number of simulation steps of the lbm scheme on the input data.
     Collision is done in Hermite moment space and the only trainable parameters
-    are weights that directly multiply each equilibrium moment
-    (so in principle they should all converge to 1 during training).
+    are weights that directly multiply each equilibrium moment.
     """
 
     def __init__(self, config: SimulationConfig, iterations: int = 1):
@@ -61,8 +96,8 @@ class LBMHermiteMinimalLayer(nn.Module):
 
         self.iterations = iterations
 
-    def get_expected_weights(self):
-        """Returns expected values of model parameters after training."""
+    def get_classical_weights(self):
+        """Returns values of model that correspond to the usual collision operator."""
         weight =  torch.tensor([1,1,1,1,1,1], dtype=torch.float)
         return [("weight", weight)]
 
@@ -110,7 +145,7 @@ class LBMHermiteMinimalLayer(nn.Module):
         return self.lbm.weights
 
     def forward(self, input):
-        return generic_forward(self, input)
+        return generic_forward_s(self, input)
 
 class LBMGramSchmidtLayer(nn.Module):
     """
@@ -132,8 +167,8 @@ class LBMGramSchmidtLayer(nn.Module):
 
         self.iterations = iterations
 
-    def get_expected_weights(self):
-        """Returns expected values of model parameters after training."""
+    def get_classical_weights(self):
+        """Returns values of model that correspond to the usual collision operator."""
         weight = torch.tensor([-2, 3, 1, -3, -1, 1/3, 1/3], dtype=torch.float)
         return [("weight", weight)]
 
@@ -180,7 +215,7 @@ class LBMGramSchmidtLayer(nn.Module):
         return self.lbm.weights
 
     def forward(self, input):
-        return generic_forward(self, input)
+        return generic_forward_s(self, input)
 
 class LbmBGKLayer(nn.Module):
     """
@@ -216,8 +251,8 @@ class LbmBGKLayer(nn.Module):
         #Expected values of trainable parameters
         self.refM0 = M0 = self.lbm.one_minus_tau_inverse * torch.eye(9) + 3.0 * self.lbm.tau_inverse * torch.matmul(A, diag_w)
 
-    def get_expected_weights(self):
-        """Returns expected values of model parameters after training."""
+    def get_classical_weights(self):
+        """Returns values of model that correspond to the usual collision operator."""
         res = []
 
         res.append(("M0", self.refM0.data))
@@ -263,7 +298,7 @@ class LbmBGKLayer(nn.Module):
         return self.lbm.weights
 
     def forward(self, input):
-        return generic_forward(self, input)
+        return generic_forward_s(self, input)
 
 
 def get_lbm_layer(e : LbmLayer, config: SimulationConfig, iterations: int):
@@ -275,17 +310,5 @@ def get_lbm_layer(e : LbmLayer, config: SimulationConfig, iterations: int):
         return LBMGramSchmidtLayer(config, iterations)
     elif e == LbmLayer.BGK:
         return LbmBGKLayer(config, iterations)
-    else:
-        raise RuntimeError("Invalid LbmLayer type provided.")
-
-def get_ref_lbm(e : LbmLayer, config: SimulationConfig):
-    """Factory function for creating an instance of a chosen reference lbm."""
-
-    if e == LbmLayer.MINIMAL_HERMITE:
-        return LbmMomentH(config)
-    elif e == LbmLayer.GRAM_SCHMIDT:
-        return LbmMomentGS(config)
-    elif e == LbmLayer.BGK:
-        return LbmBGK(config)
     else:
         raise RuntimeError("Invalid LbmLayer type provided.")

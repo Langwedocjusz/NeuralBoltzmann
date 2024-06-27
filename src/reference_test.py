@@ -174,7 +174,7 @@ def test_simulation_poiseuille():
     and compared to the theoretical profile of a Poiseuille flow.
     """
 
-    size_x = 40
+    size_x = 3
     size_y = 20
     g = 0.0001
 
@@ -190,11 +190,11 @@ def test_simulation_poiseuille():
     numeric = lbm.velocities_y[0,:]
 
     def theoretical_velocity(i: float) -> float:
-        #v = g/(2 nu) (a^2 - x^2)
         nu = (lbm.tau - 0.5)/3.0
-        #-1 since boundaries of the pipe are actually between the nodes:
+        #Channel half-width (-1 since boundaries are between nodes):
         a = (size_y-1.0)/2.0
         x = i - a
+        #v = g/(2 nu) (a^2 - x^2):
         return g * (a*a - x*x)/(2.0*nu)
 
 

@@ -62,14 +62,14 @@ def model_to_html(model, filepath: str):
     html += "</head>\n"
     html += "<body>\n"
 
-    zipped = zip(model.get_current_weights(), model.get_expected_weights())
+    zipped = zip(model.get_current_weights(), model.get_classical_weights())
 
     for (name, obtained), (_, expected) in zipped:
         html += f"<h1>{name}</h1>\n"
 
         html += "<div>\n"
         html += tensor_to_html(obtained, "obtained")
-        html += tensor_to_html(expected, "expected")
+        html += tensor_to_html(expected, "classical")
         html += "</div>\n"
 
     html += "</body>\n"
@@ -82,8 +82,8 @@ def print_model(model):
     """Prints expected and obtained parameters of the model to std out."""
 
     print("Expected:")
-    for name, param in model.get_expected_weights():
+    for name, param in model.get_classical_weights():
         print(f"{name}: {param}")
-    print("Obtained:")
+    print("Classical:")
     for name, param in model.get_current_weights():
         print(f"{name}: {param}")

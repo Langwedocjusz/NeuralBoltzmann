@@ -138,16 +138,24 @@ class Lbm(ABC):
             1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0
         ])
 
+    def calc_densities(self, weights: torch.tensor):
+        """Calculates densities from given weights."""
+        return torch.sum(weights, axis=2)
+
+    def calc_jx(self, weights: torch.tensor):
+        """Calculates x components of momenta from given weights."""
+        return torch.einsum("ijk,k->ij", (weights, self.base_velocities_x))
+
+    def calc_jy(self, weights: torch.tensor):
+        """Calculates y components of momenta from given weights."""
+        return torch.einsum("ijk,k->ij", (weights, self.base_velocities_y))
+
     def update_macroscopic(self):
         """(Re)Calculates densities and velocities from new weights."""
+        self.densities    = self.calc_densities(self.new_weights)
 
-        self.densities    = torch.sum(self.new_weights, axis=2)
-
-        self.velocities_x = torch.einsum("ijk,k->ij", (self.new_weights, self.base_velocities_x))
-        self.velocities_x = self.velocities_x / self.densities
-
-        self.velocities_y = torch.einsum("ijk,k->ij", (self.new_weights, self.base_velocities_y))
-        self.velocities_y = self.velocities_y / self.densities
+        self.velocities_x = self.calc_jx(self.new_weights) / self.densities
+        self.velocities_y = self.calc_jy(self.new_weights) / self.densities
 
     def streaming(self):
         """Calculates new weights (after streaming step) from old ones."""
@@ -243,8 +251,8 @@ class LbmBGK(Lbm):
         # f^eq_i = w_i * rho * (1.0 + 3.0 e_i.u + 4.5 * (e_i.u)^2 - 1.5 u.u)
 
         (gx, gy) = self.gravity
-        velocities_eq_x = self.velocities_x + self.tau * gx * self.densities
-        velocities_eq_y = self.velocities_y + self.tau * gy * self.densities
+        velocities_eq_x = self.velocities_x + self.tau * gx
+        velocities_eq_y = self.velocities_y + self.tau * gy
 
         e_dot_ux = self.base_velocities_x.reshape(self.shape1d) * velocities_eq_x.reshape(self.shape2d)
         e_dot_uy = self.base_velocities_y.reshape(self.shape1d) * velocities_eq_y.reshape(self.shape2d)
