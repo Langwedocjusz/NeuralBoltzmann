@@ -127,7 +127,7 @@ def get_poiseuille_data(config: SimulationConfig):
     velocities_x = torch.zeros((config.grid_size_x, config.grid_size_y), dtype=torch.float)
 
     def theoretical_velocity(i: float) -> float:
-        nu = (lbm.tau - 0.5)/3.0
+        nu = (config.tau - 0.5)/3.0
         #Channel half-width (-1 since boundaries are between nodes):
         a = (config.grid_size_y-1.0)/2.0
         x = i - a
