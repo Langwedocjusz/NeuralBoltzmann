@@ -11,6 +11,31 @@ from src.simconfig import SimulationConfig
 class Lbm(ABC):
     """Abstract base for classes implementing the Lattice Boltzman D2Q9 scheme for simulating flows."""
 
+    #Base velocities
+    diag = 1.0
+
+    base_velocities_x = torch.tensor(
+        [0.0, 1.0, 0.0, -1.0, 0.0, diag, -diag, -diag, diag]
+    )
+    base_velocities_y = torch.tensor(
+        [0.0, 0.0, 1.0, 0.0, -1.0, diag, diag, -diag, -diag]
+    )
+
+    @staticmethod
+    def calc_densities(weights: torch.tensor):
+        """Calculates densities from given weights."""
+        return torch.sum(weights, axis=2)
+
+    @staticmethod
+    def calc_jx(weights: torch.tensor):
+        """Calculates x components of momenta from given weights."""
+        return torch.einsum("ijk,k->ij", (weights, Lbm.base_velocities_x))
+
+    @staticmethod
+    def calc_jy(weights: torch.tensor):
+        """Calculates y components of momenta from given weights."""
+        return torch.einsum("ijk,k->ij", (weights, Lbm.base_velocities_y))
+
     def __init__(self, config: SimulationConfig):
         self.tau = config.tau
         self.tau_inverse = 1.0/config.tau
@@ -86,17 +111,6 @@ class Lbm(ABC):
         self.indices[8,:,:] = torch.roll(self.indices[8,:,:], -1, 1)
         self.indices[8,:,:] = torch.roll(self.indices[8,:,:],  1, 0)
 
-        #Base velocities
-        #diag = 0.5 * np.sqrt(2.0)
-        diag = 1.0
-
-        self.base_velocities_x = torch.tensor(
-            [0.0, 1.0, 0.0, -1.0, 0.0, diag, -diag, -diag, diag]
-        )
-        self.base_velocities_y = torch.tensor(
-            [0.0, 0.0, 1.0, 0.0, -1.0, diag, diag, -diag, -diag]
-        )
-
         #Solid mask
         self.solid_mask = torch.zeros(self.shape2d, dtype=torch.bool)
 
@@ -138,17 +152,7 @@ class Lbm(ABC):
             1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0
         ])
 
-    def calc_densities(self, weights: torch.tensor):
-        """Calculates densities from given weights."""
-        return torch.sum(weights, axis=2)
 
-    def calc_jx(self, weights: torch.tensor):
-        """Calculates x components of momenta from given weights."""
-        return torch.einsum("ijk,k->ij", (weights, self.base_velocities_x))
-
-    def calc_jy(self, weights: torch.tensor):
-        """Calculates y components of momenta from given weights."""
-        return torch.einsum("ijk,k->ij", (weights, self.base_velocities_y))
 
     def update_macroscopic(self):
         """(Re)Calculates densities and velocities from new weights."""
@@ -254,8 +258,8 @@ class LbmBGK(Lbm):
         velocities_eq_x = self.velocities_x + self.tau * gx
         velocities_eq_y = self.velocities_y + self.tau * gy
 
-        e_dot_ux = self.base_velocities_x.reshape(self.shape1d) * velocities_eq_x.reshape(self.shape2d)
-        e_dot_uy = self.base_velocities_y.reshape(self.shape1d) * velocities_eq_y.reshape(self.shape2d)
+        e_dot_ux = Lbm.base_velocities_x.reshape(self.shape1d) * velocities_eq_x.reshape(self.shape2d)
+        e_dot_uy = Lbm.base_velocities_y.reshape(self.shape1d) * velocities_eq_y.reshape(self.shape2d)
 
         e_dot_u = e_dot_ux + e_dot_uy
         e_dot_u2 = torch.square(e_dot_u)

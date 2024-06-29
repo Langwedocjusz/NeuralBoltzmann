@@ -10,6 +10,8 @@ from src.lbm_training import train_gaussian
 from src.lbm_training import train_poiseuille
 from src.lbm_training import train_gaussian_batch
 
+from src.lbm_data import weights_from_macroscopic
+
 from src import plotting
 
 def test_ref():

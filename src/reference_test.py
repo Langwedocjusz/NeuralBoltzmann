@@ -258,6 +258,6 @@ def simulate_cylinder():
         #u2 = torch.square(lbm.velocities_x) + torch.square(lbm.velocities_y)
         #plotting.show_heatmap(u2, 'velocity magnitude', 0.0, v*v)
         #plotting.show_heatmap(lbm.densities, 'density')
-        #plotting.show_heatmap(lbm.velocities_x, 'velocity x', 0.0, v)
-        plotting.save_heatmap(lbm.velocities_x, 'velocity x', str(i) + ".png", 0.0, v)
+        plotting.show_heatmap(lbm.velocities_x, 'velocity x', 0.0, v)
+        #plotting.save_heatmap(lbm.velocities_x, 'velocity x', str(i) + ".png", 0.0, v)
         #plotting.show_vector_field(lbm.velocities_x, lbm.velocities_y, 'velocity')

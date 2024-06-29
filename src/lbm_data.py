@@ -10,6 +10,7 @@ import torch
 from src.simconfig import SimulationConfig
 from src.lbm_layer import LbmLayer
 
+from src.reference import Lbm
 from src.reference import LbmBGK
 
 def get_stationary_weights(config: SimulationConfig):
@@ -32,13 +33,10 @@ def macroscopic_from_weights(weights: torch.tensor):
     from the given distribution weights.
     """
 
-    config = SimulationConfig(3,3,0.7)
-    lbm = LbmBGK(config)
-
     return torch.stack([
-        lbm.calc_densities(weights),
-        lbm.calc_jx(weights),
-        lbm.calc_jy(weights),
+        Lbm.calc_densities(weights),
+        Lbm.calc_jx(weights),
+        Lbm.calc_jy(weights),
     ])
 
 def weights_from_macroscopic(solution: torch.tensor):
@@ -46,8 +44,12 @@ def weights_from_macroscopic(solution: torch.tensor):
     Calculates weights from given macroscopic data (density, velocity),
     as an equilibrium distribution for those values.
     """
+    config = SimulationConfig(
+        solution.shape[1],
+        solution.shape[2],
+        1.0
+    )
 
-    config = SimulationConfig(3,3,0.7)
     lbm = LbmBGK(config)
 
     lbm.densities = solution[0,:,:]
@@ -73,7 +75,7 @@ def get_target(initial_data, config: SimulationConfig, num_steps: int = 1):
 
 def get_gaussian(config: SimulationConfig, width: float = 2.0, offset: (float, float) = (0.0, 0.0)):
     """
-    Returns initial weights for lbm, density of which is a gaussian function and corresponding.
+    Returns initial weights for lbm, density of which is a gaussian function.
     """
 
     weights = get_stationary_weights(config)
